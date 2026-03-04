@@ -6,14 +6,14 @@
 <title>イケボ判定 – 声の倍音分析器</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Space+Mono:wght@400;700&display=swap');
-  :root{--bg:#0c0a12;--panel:#131020;--border:#241d36;--accent:#b87fff;--accent2:#ff6b9d;--accent3:#9b6fff;--accent4:#d4a8ff;--text:#f0ecfa;--text-dim:#b0a0cc;--glow:0 0 20px rgba(184,127,255,0.25);}
+  :root{--bg:#0a0c10;--panel:#111318;--border:#1e2330;--accent:#4ff0b0;--accent2:#ff6b6b;--accent3:#7eb8ff;--accent4:#ffd166;--text:#c8d0e0;--text-dim:#8a9ab0;--glow:0 0 20px rgba(79,240,176,0.3);}
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);font-family:'Zen Kaku Gothic New',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px;background-image:radial-gradient(ellipse at 25% 15%,rgba(184,127,255,0.06) 0%,transparent 55%),radial-gradient(ellipse at 75% 85%,rgba(155,111,255,0.04) 0%,transparent 55%);}
+  body{background:var(--bg);color:var(--text);font-family:'Zen Kaku Gothic New',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px;background-image:radial-gradient(ellipse at 20% 20%,rgba(79,240,176,0.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(126,184,255,0.04) 0%,transparent 60%);}
   header{text-align:center;margin-bottom:40px;}
   header h1{font-family:'Space Mono',monospace;font-size:clamp(1.4rem,4vw,2.2rem);color:var(--accent);letter-spacing:.1em;text-shadow:var(--glow);margin-bottom:8px;}
   header p{color:var(--text-dim);font-size:.95rem;font-weight:300;}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:700px;margin-bottom:20px;}
-  .card-title{font-family:'Space Mono',monospace;font-size:.8rem;color:#c8b8e8;letter-spacing:.15em;text-transform:uppercase;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;}
+  .card-title{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--accent3);letter-spacing:.15em;text-transform:uppercase;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;}
   .tab-row{display:flex;gap:8px;margin-bottom:20px;}
   .tab-btn{flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'Space Mono',monospace;font-size:.78rem;cursor:pointer;transition:all .2s;}
   .tab-btn.active{background:rgba(79,240,176,.1);border-color:var(--accent);color:var(--accent);box-shadow:var(--glow);}
@@ -42,10 +42,10 @@
   .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px;}
   .file-name{font-family:'Space Mono',monospace;font-size:.75rem;color:var(--accent);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .canvas-wrap{position:relative;width:100%;margin-bottom:12px;}
-  canvas{width:100%;border-radius:8px;background:#090710;display:block;}
+  canvas{width:100%;border-radius:8px;background:#080a0e;display:block;}
   .audio-player{width:100%;margin-top:12px;border-radius:8px;accent-color:var(--accent);}
   .results-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
-  .metric{background:#090710;border:1px solid var(--border);border-radius:10px;padding:16px;}
+  .metric{background:#080a0e;border:1px solid var(--border);border-radius:10px;padding:16px;}
   .metric-label{font-size:.78rem;color:var(--text-dim);letter-spacing:.05em;margin-bottom:6px;}
   .metric-value{font-family:'Space Mono',monospace;font-size:1.5rem;font-weight:700;}
   .metric-sub{font-size:.75rem;color:var(--text-dim);margin-top:4px;}
@@ -56,7 +56,7 @@
   .verdict.warn{background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.3);}
   .verdict.bad{background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);}
   .verdict-icon{font-size:2rem;flex-shrink:0;}
-  .verdict-text h3{font-size:1.05rem;font-weight:700;margin-bottom:4px;color:#ffffff;}
+  .verdict-text h3{font-size:1.05rem;font-weight:700;margin-bottom:4px;}
   .verdict-text p{font-size:.88rem;color:var(--text-dim);line-height:1.7;}
   /* スコアゲージ */
   .score-gauge-wrap{margin:20px 0;}
@@ -67,7 +67,7 @@
   .harmonic-chart-wrap{margin-bottom:8px;}
   .harmonic-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
   .hbar-label{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--text-dim);width:52px;text-align:right;flex-shrink:0;}
-  .hbar-track{flex:1;height:10px;border-radius:5px;background:#1a1428;overflow:hidden;}
+  .hbar-track{flex:1;height:10px;border-radius:5px;background:#1a1e28;overflow:hidden;}
   .hbar-fill{height:100%;border-radius:5px;transition:width .6s cubic-bezier(.34,1.56,.64,1);}
   .hbar-val{font-family:'Space Mono',monospace;font-size:.72rem;width:42px;text-align:left;flex-shrink:0;}
   /* ローディング */
@@ -79,25 +79,24 @@
   /* 説明 */
   .explain-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px;}
   @media(max-width:500px){.explain-grid{grid-template-columns:1fr;}}
-  .explain-card{background:#090710;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;}
+  .explain-card{background:#080a0e;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;}
   .explain-card .icon{font-size:1.8rem;margin-bottom:8px;}
-  .explain-card h4{font-size:.88rem;font-weight:700;margin-bottom:6px;color:#f0ecfa;}
+  .explain-card h4{font-size:.88rem;font-weight:700;margin-bottom:6px;color:var(--text);}
   .explain-card p{font-size:.8rem;color:var(--text-dim);line-height:1.7;}
   .explain-lead{font-size:.95rem;line-height:1.9;color:var(--text);margin-bottom:16px;}
-  .explain-lead strong{color:#ffffff;}
-  .script-box{background:#090710;border:1px solid var(--border);border-radius:12px;padding:20px 24px;font-size:.95rem;line-height:2.3;color:var(--text);}
+  .explain-lead strong{color:var(--accent);}
+  .script-box{background:#080a0e;border:1px solid var(--border);border-radius:12px;padding:20px 24px;font-size:.95rem;line-height:2.3;color:var(--text);}
   .howto{font-size:.88rem;color:var(--text);line-height:2.0;}
-  .howto li strong{color:#ffffff !important;}
   .howto li{margin-bottom:6px;list-style:none;padding-left:1.4em;position:relative;}
   .howto li::before{content:'›';position:absolute;left:0;color:var(--accent);}
   .share-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
   /* スコア詳細 */
   .sub-scores{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;}
   @media(max-width:480px){.sub-scores{grid-template-columns:1fr;}}
-  .sub-score-card{background:#090710;border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;}
+  .sub-score-card{background:#080a0e;border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;}
   .sub-score-label{font-size:.72rem;color:var(--text-dim);margin-bottom:6px;line-height:1.5;}
   .sub-score-val{font-family:'Space Mono',monospace;font-size:1.3rem;font-weight:700;}
-  .sub-score-bar-wrap{height:4px;border-radius:2px;background:#1a1428;margin-top:8px;overflow:hidden;}
+  .sub-score-bar-wrap{height:4px;border-radius:2px;background:#1a1e28;margin-top:8px;overflow:hidden;}
   .sub-score-bar{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.34,1.56,.64,1);}
 </style>
 </head>
@@ -400,10 +399,12 @@ function analyze(){
   const useLen=Math.min(raw.length, maxSamples);
   const N=nextPow2(useLen);
   const padded=new Float32Array(N);
-  // ハニング窓を適用
+  // 最初の200msをフェードイン（ポップノイズ対策）＋ハニング窓
+  const fadeLen=Math.floor(sampleRate*0.2);
   for(let i=0;i<useLen;i++){
+    const fade=i<fadeLen?i/fadeLen:1;
     const w=0.5*(1-Math.cos(2*Math.PI*i/(useLen-1)));
-    padded[i]=raw[i]*w;
+    padded[i]=raw[i]*w*fade;
   }
   const spectrum=fftMagnitude(padded);
   const half=Math.floor(N/2);
@@ -542,7 +543,7 @@ function displayResults(r){
 // ============================================================
 // 倍音バー（HTML）
 // ============================================================
-const HARMONIC_COLORS=['#b87fff','#ff6b9d','#9b6fff','#d4a8ff','#b87fff','#ff6b9d','#9b6fff','#d4a8ff','#b87fff','#ff6b9d','#9b6fff','#d4a8ff'];
+const HARMONIC_COLORS=['#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff'];
 function buildHarmonicBars(ratios){
   const maxRatio=Math.max(...ratios,0.01);
   const chart=document.getElementById('harmonicChart');
@@ -569,80 +570,96 @@ function drawHarmonicCanvas(r){
   const W=canvas.offsetWidth*devicePixelRatio,H=160*devicePixelRatio;
   canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');
-  ctx.fillStyle='#090710';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
 
   const pad={l:40*devicePixelRatio,r:12*devicePixelRatio,t:12*devicePixelRatio,b:24*devicePixelRatio};
   const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
 
-  // 表示周波数範囲（基音の12倍まで、最大8kHz）
-  const maxFreqShow=Math.min(r.meanPitch*13, 8000);
+  // 表示周波数範囲：50Hz〜（基音の12倍まで、最大8kHz）
+  const minFreqShow=50;
+  const maxFreqShow=Math.min(r.meanPitch*13,8000);
+  const minBin=Math.max(1,Math.floor(minFreqShow/r.binHz));
   const maxBin=Math.min(Math.ceil(maxFreqShow/r.binHz),r.half-1);
+  const freqRange=maxFreqShow-minFreqShow;
 
   // 振幅の最大値
   let specMax=0;
-  for(let b=1;b<=maxBin;b++) if(r.spectrum[b]>specMax) specMax=r.spectrum[b];
+  for(let b=minBin;b<=maxBin;b++) if(r.spectrum[b]>specMax) specMax=r.spectrum[b];
   if(specMax===0)return;
 
-  ctx.strokeStyle='rgba(36,29,54,0.9)';ctx.lineWidth=1;
+  const toX=freq=>pad.l+((freq-minFreqShow)/freqRange)*pw;
+
+  // 横グリッド
+  ctx.strokeStyle='rgba(30,35,48,0.8)';ctx.lineWidth=1;
   for(let i=1;i<=3;i++){const y=pad.t+ph/4*i;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();}
 
   // X軸 Hz グリッド線＋ラベル
   const freqTicks=[];
-  let step=100;
-  if(maxFreqShow>3000)step=500;
-  if(maxFreqShow>6000)step=1000;
-  for(let f=step;f<maxFreqShow;f+=step) freqTicks.push(f);
-  ctx.strokeStyle='rgba(36,29,54,0.6)';ctx.lineWidth=1;
+  let tickStep=100;
+  if(maxFreqShow>3000)tickStep=500;
+  if(maxFreqShow>6000)tickStep=1000;
+  // 50Hzラベルを先頭に
+  ctx.fillStyle='#3a4050';ctx.font=`${8*devicePixelRatio}px monospace`;ctx.textAlign='center';
+  ctx.fillText('50',toX(50),pad.t+ph+12*devicePixelRatio);
+  for(let f=tickStep;f<maxFreqShow;f+=tickStep){
+    if(f<minFreqShow)continue;
+    freqTicks.push(f);
+  }
+  ctx.strokeStyle='rgba(30,35,48,0.6)';ctx.lineWidth=1;
   freqTicks.forEach(f=>{
-    const x=pad.l+(f/maxFreqShow)*pw;
+    const x=toX(f);
     ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ph);ctx.stroke();
-    ctx.fillStyle='#5a4a7a';ctx.font=`${8*devicePixelRatio}px monospace`;ctx.textAlign='center';
+    ctx.fillStyle='#3a4050';ctx.font=`${8*devicePixelRatio}px monospace`;ctx.textAlign='center';
     const label=f>=1000?(f/1000).toFixed(f%1000===0?0:1)+'k':f+'';
     ctx.fillText(label,x,pad.t+ph+12*devicePixelRatio);
   });
 
   // スペクトル曲線
   ctx.beginPath();
-  ctx.strokeStyle='rgba(184,127,255,0.45)';ctx.lineWidth=1.2*devicePixelRatio;
-  for(let b=1;b<=maxBin;b++){
-    const x=pad.l+(b/maxBin)*pw;
+  ctx.strokeStyle='rgba(79,240,176,0.5)';ctx.lineWidth=1.2*devicePixelRatio;
+  let first=true;
+  for(let b=minBin;b<=maxBin;b++){
+    const freq=b*r.binHz;
+    const x=toX(freq);
     const y=pad.t+ph-(r.spectrum[b]/specMax)*ph*0.95;
-    if(b===1)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);
   }
   ctx.stroke();
-
   // 塗りつぶし
-  ctx.lineTo(pad.l+(maxBin/maxBin)*pw,pad.t+ph);ctx.lineTo(pad.l,pad.t+ph);ctx.closePath();
-  ctx.fillStyle='rgba(184,127,255,0.06)';ctx.fill();
+  const lastFreq=maxBin*r.binHz;
+  ctx.lineTo(toX(lastFreq),pad.t+ph);ctx.lineTo(toX(minFreqShow),pad.t+ph);ctx.closePath();
+  ctx.fillStyle='rgba(79,240,176,0.06)';ctx.fill();
 
-  // 倍音マーカー（基音周辺のピークを探して正確に配置）
+  // 倍音マーカー：ピーク探索＋Hz表示
   for(let h=0;h<12;h++){
     const centerHz=r.meanPitch*(h+1);
-    if(centerHz>maxFreqShow)break;
-    // 探索範囲：中心±15%
-    const loHz=centerHz*0.85, hiHz=centerHz*1.15;
-    const loBin=Math.max(1,Math.round(loHz/r.binHz));
+    if(centerHz>maxFreqShow||centerHz<minFreqShow)continue;
+    // ±15%の範囲でピーク探索
+    const loHz=centerHz*0.85,hiHz=centerHz*1.15;
+    const loBin=Math.max(minBin,Math.round(loHz/r.binHz));
     const hiBin=Math.min(Math.round(hiHz/r.binHz),r.half-1);
-    // 範囲内の最大ビンを探す
-    let peakBin=loBin, peakAmp=0;
-    for(let b=loBin;b<=hiBin;b++){
-      if(r.spectrum[b]>peakAmp){peakAmp=r.spectrum[b];peakBin=b;}
-    }
+    let peakBin=loBin,peakAmp=0;
+    for(let b=loBin;b<=hiBin;b++){if(r.spectrum[b]>peakAmp){peakAmp=r.spectrum[b];peakBin=b;}}
     const peakFreq=peakBin*r.binHz;
-    const x=pad.l+(peakFreq/maxFreqShow)*pw;
+    if(peakFreq<minFreqShow||peakFreq>maxFreqShow)continue;
+    const x=toX(peakFreq);
     const y=pad.t+ph-(peakAmp/specMax)*ph*0.95;
     // 縦線
     ctx.strokeStyle=HARMONIC_COLORS[h]+'99';ctx.lineWidth=1.5*devicePixelRatio;ctx.setLineDash([3*devicePixelRatio,3*devicePixelRatio]);
     ctx.beginPath();ctx.moveTo(x,pad.t+ph);ctx.lineTo(x,y+6*devicePixelRatio);ctx.stroke();ctx.setLineDash([]);
     // 丸
     ctx.beginPath();ctx.arc(x,y,4*devicePixelRatio,0,Math.PI*2);ctx.fillStyle=HARMONIC_COLORS[h];ctx.fill();
-    // ラベル
-    ctx.fillStyle=HARMONIC_COLORS[h];ctx.font=`${9*devicePixelRatio}px monospace`;ctx.textAlign='center';
-    ctx.fillText(h+1,x,y-7*devicePixelRatio);
+    // 倍音番号
+    ctx.fillStyle=HARMONIC_COLORS[h];ctx.font=`bold ${9*devicePixelRatio}px monospace`;ctx.textAlign='center';
+    ctx.fillText(h+1,x,y-16*devicePixelRatio);
+    // Hz表示
+    const hzLabel=peakFreq>=1000?(peakFreq/1000).toFixed(1)+'k':Math.round(peakFreq)+'';
+    ctx.fillStyle=HARMONIC_COLORS[h]+'cc';ctx.font=`${8*devicePixelRatio}px monospace`;
+    ctx.fillText(hzLabel+'Hz',x,y-6*devicePixelRatio);
   }
 
   // 軸ラベル
-  ctx.fillStyle='#5a4a7a';ctx.font=`${8.5*devicePixelRatio}px monospace`;ctx.textAlign='left';
+  ctx.fillStyle='#3a4050';ctx.font=`${8.5*devicePixelRatio}px monospace`;ctx.textAlign='left';
   ctx.fillText('Hz',pad.l,pad.t+ph+12*devicePixelRatio);
 }
 
@@ -654,9 +671,14 @@ function drawWaveform(){
   const canvas=document.getElementById('waveCanvas');
   const W=canvas.offsetWidth*devicePixelRatio,H=80*devicePixelRatio;
   canvas.width=W;canvas.height=H;
-  const ctx=canvas.getContext('2d');ctx.fillStyle='#090710';ctx.fillRect(0,0,W,H);
-  const data=audioBuffer.getChannelData(0),step=Math.ceil(data.length/W);
-  ctx.strokeStyle='#b87fff';ctx.lineWidth=1;ctx.beginPath();
+  const ctx=canvas.getContext('2d');ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
+  const raw=audioBuffer.getChannelData(0);
+  // フェードイン：最初の200msをフェード（ポップノイズ対策）
+  const fadeLen=Math.floor(audioBuffer.sampleRate*0.2);
+  const data=new Float32Array(raw.length);
+  for(let i=0;i<raw.length;i++) data[i]=raw[i]*(i<fadeLen?i/fadeLen:1);
+  const step=Math.ceil(data.length/W);
+  ctx.strokeStyle='#4ff0b0';ctx.lineWidth=1;ctx.beginPath();
   for(let i=0;i<W;i++){
     let min=1,max=-1;
     for(let j=0;j<step;j++){const v=data[i*step+j]||0;if(v<min)min=v;if(v>max)max=v;}
@@ -677,18 +699,18 @@ function drawWaveform(){
   const sc=document.getElementById('specCanvas');
   const sW=sc.offsetWidth*devicePixelRatio,sH=80*devicePixelRatio;
   sc.width=sW;sc.height=sH;
-  const sCtx=sc.getContext('2d');sCtx.fillStyle='#090710';sCtx.fillRect(0,0,sW,sH);
+  const sCtx=sc.getContext('2d');sCtx.fillStyle='#080a0e';sCtx.fillRect(0,0,sW,sH);
   let sMax=0;for(let b=1;b<half2;b++)if(spec[b]>sMax)sMax=spec[b];
   if(sMax>0){
     const useBins=Math.floor(half2*0.4);
     for(let b=1;b<=useBins;b++){
       const x=(b/useBins)*sW;
       const bh=(spec[b]/sMax)*sH*0.9;
-      sCtx.fillStyle=`rgba(184,127,255,${0.3+spec[b]/sMax*0.65})`;
+      sCtx.fillStyle=`rgba(126,184,255,${0.4+spec[b]/sMax*0.6})`;
       sCtx.fillRect(x-0.5,sH-bh,Math.max(1,(sW/useBins)*0.8),bh);
     }
   }
-  sCtx.fillStyle='#5a4a7a';sCtx.font=`${9*devicePixelRatio}px monospace`;sCtx.textAlign='left';
+  sCtx.fillStyle='#3a4050';sCtx.font=`${9*devicePixelRatio}px monospace`;sCtx.textAlign='left';
   sCtx.fillText('SPECTRUM',6*devicePixelRatio,14*devicePixelRatio);
 }
 
@@ -701,9 +723,9 @@ function saveImage(){
   const W=600,H=420;
   const c=document.createElement('canvas');c.width=W;c.height=H;
   const ctx=c.getContext('2d');
-  ctx.fillStyle='#0c0a12';ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle='#241d36';ctx.lineWidth=1;ctx.strokeRect(1,1,W-2,H-2);
-  ctx.fillStyle='#b87fff';ctx.font='bold 17px monospace';ctx.textAlign='center';
+  ctx.fillStyle='#0a0c10';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#1e2330';ctx.lineWidth=1;ctx.strokeRect(1,1,W-2,H-2);
+  ctx.fillStyle='#4ff0b0';ctx.font='bold 17px monospace';ctx.textAlign='center';
   ctx.fillText('IKEBO ANALYZER',W/2,34);
   const vColor=r.vClass==='good'?'#4ff0b0':r.vClass==='warn'?'#ffd166':'#ff6b6b';
   ctx.fillStyle=vColor;ctx.font='bold 20px sans-serif';ctx.textAlign='center';
@@ -721,13 +743,13 @@ function saveImage(){
   r.harmonicRatios.slice(0,8).forEach((ratio,h)=>{
     const y=startY+h*barGap;
     const label=h===0?'基音':'×'+(h+1);
-    ctx.fillStyle='#5a4a7a';ctx.font='10px monospace';ctx.textAlign='right';ctx.fillText(label,barX-6,y+barH-4);
-    ctx.fillStyle='#1a1428';ctx.fillRect(barX,y,barW,barH);
+    ctx.fillStyle='#3a4050';ctx.font='10px monospace';ctx.textAlign='right';ctx.fillText(label,barX-6,y+barH-4);
+    ctx.fillStyle='#1a1e28';ctx.fillRect(barX,y,barW,barH);
     const fw=Math.min(barW,(ratio/maxR)*barW);
     ctx.fillStyle=HARMONIC_COLORS[h]+'cc';ctx.fillRect(barX,y,fw,barH);
   });
 
-  ctx.fillStyle='#5a4a7a';ctx.font='10px monospace';ctx.textAlign='center';
+  ctx.fillStyle='#3a4050';ctx.font='10px monospace';ctx.textAlign='center';
   ctx.fillText('ikebo-analyzer',W/2,H-10);
 
   const dataUrl=c.toDataURL('image/png');
