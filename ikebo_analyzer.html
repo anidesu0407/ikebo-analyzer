@@ -6,14 +6,14 @@
 <title>イケボ判定 – 声の倍音分析器</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Space+Mono:wght@400;700&display=swap');
-  :root{--bg:#0c0a12;--panel:#131020;--border:#241d36;--accent:#b87fff;--accent2:#ff6b9d;--accent3:#9b6fff;--accent4:#d4a8ff;--text:#ddd0f0;--text-dim:#8a7aaa;--glow:0 0 20px rgba(184,127,255,0.25);}
+  :root{--bg:#0c0a12;--panel:#131020;--border:#241d36;--accent:#b87fff;--accent2:#ff6b9d;--accent3:#9b6fff;--accent4:#d4a8ff;--text:#f0ecfa;--text-dim:#b0a0cc;--glow:0 0 20px rgba(184,127,255,0.25);}
   *{box-sizing:border-box;margin:0;padding:0;}
   body{background:var(--bg);color:var(--text);font-family:'Zen Kaku Gothic New',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px;background-image:radial-gradient(ellipse at 25% 15%,rgba(184,127,255,0.06) 0%,transparent 55%),radial-gradient(ellipse at 75% 85%,rgba(155,111,255,0.04) 0%,transparent 55%);}
   header{text-align:center;margin-bottom:40px;}
   header h1{font-family:'Space Mono',monospace;font-size:clamp(1.4rem,4vw,2.2rem);color:var(--accent);letter-spacing:.1em;text-shadow:var(--glow);margin-bottom:8px;}
   header p{color:var(--text-dim);font-size:.95rem;font-weight:300;}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:700px;margin-bottom:20px;}
-  .card-title{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--accent3);letter-spacing:.15em;text-transform:uppercase;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;}
+  .card-title{font-family:'Space Mono',monospace;font-size:.8rem;color:#c8b8e8;letter-spacing:.15em;text-transform:uppercase;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;}
   .tab-row{display:flex;gap:8px;margin-bottom:20px;}
   .tab-btn{flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'Space Mono',monospace;font-size:.78rem;cursor:pointer;transition:all .2s;}
   .tab-btn.active{background:rgba(79,240,176,.1);border-color:var(--accent);color:var(--accent);box-shadow:var(--glow);}
@@ -56,7 +56,7 @@
   .verdict.warn{background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.3);}
   .verdict.bad{background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);}
   .verdict-icon{font-size:2rem;flex-shrink:0;}
-  .verdict-text h3{font-size:1.05rem;font-weight:700;margin-bottom:4px;}
+  .verdict-text h3{font-size:1.05rem;font-weight:700;margin-bottom:4px;color:#ffffff;}
   .verdict-text p{font-size:.88rem;color:var(--text-dim);line-height:1.7;}
   /* スコアゲージ */
   .score-gauge-wrap{margin:20px 0;}
@@ -81,12 +81,13 @@
   @media(max-width:500px){.explain-grid{grid-template-columns:1fr;}}
   .explain-card{background:#090710;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;}
   .explain-card .icon{font-size:1.8rem;margin-bottom:8px;}
-  .explain-card h4{font-size:.88rem;font-weight:700;margin-bottom:6px;color:var(--text);}
+  .explain-card h4{font-size:.88rem;font-weight:700;margin-bottom:6px;color:#f0ecfa;}
   .explain-card p{font-size:.8rem;color:var(--text-dim);line-height:1.7;}
   .explain-lead{font-size:.95rem;line-height:1.9;color:var(--text);margin-bottom:16px;}
-  .explain-lead strong{color:var(--accent);}
+  .explain-lead strong{color:#ffffff;}
   .script-box{background:#090710;border:1px solid var(--border);border-radius:12px;padding:20px 24px;font-size:.95rem;line-height:2.3;color:var(--text);}
   .howto{font-size:.88rem;color:var(--text);line-height:2.0;}
+  .howto li strong{color:#ffffff !important;}
   .howto li{margin-bottom:6px;list-style:none;padding-left:1.4em;position:relative;}
   .howto li::before{content:'›';position:absolute;left:0;color:var(--accent);}
   .share-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
@@ -614,14 +615,22 @@ function drawHarmonicCanvas(r){
   ctx.lineTo(pad.l+(maxBin/maxBin)*pw,pad.t+ph);ctx.lineTo(pad.l,pad.t+ph);ctx.closePath();
   ctx.fillStyle='rgba(184,127,255,0.06)';ctx.fill();
 
-  // 倍音マーカー
+  // 倍音マーカー（基音周辺のピークを探して正確に配置）
   for(let h=0;h<12;h++){
-    const freq=r.meanPitch*(h+1);
-    if(freq>maxFreqShow)break;
-    const x=pad.l+(freq/maxFreqShow)*pw;
-    const binIdx=Math.round(freq/r.binHz);
-    const amp=binIdx<r.half?r.spectrum[binIdx]:0;
-    const y=pad.t+ph-(amp/specMax)*ph*0.95;
+    const centerHz=r.meanPitch*(h+1);
+    if(centerHz>maxFreqShow)break;
+    // 探索範囲：中心±15%
+    const loHz=centerHz*0.85, hiHz=centerHz*1.15;
+    const loBin=Math.max(1,Math.round(loHz/r.binHz));
+    const hiBin=Math.min(Math.round(hiHz/r.binHz),r.half-1);
+    // 範囲内の最大ビンを探す
+    let peakBin=loBin, peakAmp=0;
+    for(let b=loBin;b<=hiBin;b++){
+      if(r.spectrum[b]>peakAmp){peakAmp=r.spectrum[b];peakBin=b;}
+    }
+    const peakFreq=peakBin*r.binHz;
+    const x=pad.l+(peakFreq/maxFreqShow)*pw;
+    const y=pad.t+ph-(peakAmp/specMax)*ph*0.95;
     // 縦線
     ctx.strokeStyle=HARMONIC_COLORS[h]+'99';ctx.lineWidth=1.5*devicePixelRatio;ctx.setLineDash([3*devicePixelRatio,3*devicePixelRatio]);
     ctx.beginPath();ctx.moveTo(x,pad.t+ph);ctx.lineTo(x,y+6*devicePixelRatio);ctx.stroke();ctx.setLineDash([]);
