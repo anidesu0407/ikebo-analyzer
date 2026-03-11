@@ -203,7 +203,7 @@ function detectPitch(timeDomainData, sampleRate){
   // RMSチェック
   let rms=0;for(let i=0;i<SIZE;i++)rms+=buf[i]*buf[i];
   rms=Math.sqrt(rms/SIZE);
-  if(rms<0.01)return null;
+  if(rms<0.03)return null;
 
   const minLag=Math.floor(sampleRate/500);
   const maxLag=Math.floor(sampleRate/80);
@@ -243,12 +243,15 @@ function draw(){
 
   // ピッチ検出
   const pitch=detectPitch(timeData,sampleRate);
-  if(pitch&&pitch>50&&pitch<600){
+  if(pitch&&pitch>80&&pitch<500){
     pitchHistory.push(pitch);
     if(pitchHistory.length>MAX_PITCH_HIST)pitchHistory.shift();
+  } else if(!pitch){
+    // 無音時は履歴を徐々に消す
+    if(pitchHistory.length>0)pitchHistory.shift();
   }
   const sorted=[...pitchHistory].sort((a,b)=>a-b);
-  const medPitch=sorted.length>0?sorted[Math.floor(sorted.length/2)]:null;
+  const medPitch=sorted.length>3?sorted[Math.floor(sorted.length/2)]:null;
 
   // ピッチ表示
   const pitchEl=document.getElementById('pitchHz');
@@ -261,6 +264,10 @@ function draw(){
     else if(medPitch<165)pitchEl.style.color='#7eb8ff';
     else if(medPitch<260)pitchEl.style.color='#ffd166';
     else pitchEl.style.color='#ff6b6b';
+  } else {
+    pitchEl.textContent='—';
+    pitchEl.style.color='var(--accent)';
+    document.getElementById('pitchNote').textContent='';
   }
 
   // 波形描画
