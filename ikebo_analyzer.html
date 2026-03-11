@@ -443,7 +443,7 @@ function analyze(){
   const pd=(pp-2*peakAmp+pn);
   const refinedPitch=(peakBin+(pd!==0?0.5*(pp-pn)/(-pd):0))*binHz;
 
-  // --- 3. 倍音ごとのエネルギー（基音の±10%以内を積算）---
+  // --- 3. 倍音ごとのエネルギー（基音の±12%以内を積算）---
   const harmonicEnergies=[];
   for(let h=1;h<=12;h++){
     const centerHz=refinedPitch*h;
@@ -458,8 +458,10 @@ function analyze(){
   const harmonicRatios=harmonicEnergies.map(e=>e/fundamentalEnergy);
 
   // --- 4. Singer's Formant（2〜4kHz帯のエネルギー）---
+  // 基音の0.8倍〜8kHzの範囲で計算（低周波ノイズを除外）
   const sfLo=Math.floor(2000/binHz),sfHi=Math.min(Math.ceil(4000/binHz),half-1);
-  const totalLo=Math.floor(200/binHz),totalHi=Math.min(Math.ceil(8000/binHz),half-1);
+  const totalLo=Math.max(Math.floor(refinedPitch*0.8/binHz),Math.floor(200/binHz));
+  const totalHi=Math.min(Math.ceil(8000/binHz),half-1);
   let sfEnergy=0,totalEnergy=0;
   for(let b=sfLo;b<=sfHi;b++) sfEnergy+=spectrum[b]*spectrum[b];
   for(let b=totalLo;b<=totalHi;b++) totalEnergy+=spectrum[b]*spectrum[b];
@@ -469,10 +471,12 @@ function analyze(){
   const richRatios=harmonicRatios.slice(1,5); // 2〜5倍音
   const harmonicRichness=richRatios.reduce((a,b)=>a+b,0)/richRatios.length;
 
-  // --- 6. 1/fゆらぎ計算（ゆらぎアプリと同じアルゴリズム）---
-  const N2=nextPow2(pitchValues.length);
+  // --- 6. 1/fゆらぎ計算（外れ値除去済みピッチ列を使用）---
+  // 中央値±20%で外れ値除去してからゆらぎ計算
+  const validPitchesForFlicker=pitchValues.filter(p=>p>medianPitch*0.8&&p<medianPitch*1.2);
+  const N2=nextPow2(validPitchesForFlicker.length);
   const padded2=new Float32Array(N2);
-  for(let i=0;i<pitchValues.length;i++) padded2[i]=pitchValues[i]-refinedPitch;
+  for(let i=0;i<validPitchesForFlicker.length;i++) padded2[i]=validPitchesForFlicker[i]-refinedPitch;
   const spec2=fftMagnitude(padded2);
   const half2=Math.floor(N2/2);
   const logFreqs=[],logPowers=[];
@@ -512,7 +516,7 @@ function analyze(){
     vDesc='声の倍音が少なめです。録音環境の見直しと発声練習を試してみましょう。';
   }
 
-  // --- 副倍音検出 ---
+  // --- 副倍音検出（voice_analyzer_proと統一）---
   const subHarmonics=[];
   for(let d=2;d<=4;d++){
     const subHz=refinedPitch/d;
@@ -522,7 +526,6 @@ function analyze(){
     let energy=0;
     for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
     const amp=Math.sqrt(energy);
-    // 基音エネルギーの5%以上あれば副倍音とみなす
     const ratio=amp/(harmonicEnergies[0]||1);
     subHarmonics.push({hz:subHz,ratio,detected:ratio>0.05,divisor:d});
   }
