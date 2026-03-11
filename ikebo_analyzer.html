@@ -383,10 +383,44 @@ function analyze(){
   const sampleRate=audioBuffer.sampleRate;
   const raw=audioBuffer.getChannelData(0);
 
-  // --- 1. ピッチ（基音）検出 ---
-  const frameSize=4096,hopSize=512; // 低域精度向上のためフレームサイズ拡大
-  const minHz=20,maxHz=500;
-  const minLag=Math.floor(sampleRate/maxHz),maxLag=Math.floor(sampleRate/minHz);
+  // --- 1. FFTで全体スペクトル計算（HPS用）---
+  const maxSamples=65536;
+  const useLen=Math.min(raw.length, maxSamples);
+  const N=nextPow2(useLen);
+  const padded=new Float32Array(N);
+  const fadeLen=Math.floor(sampleRate*0.2);
+  for(let i=0;i<useLen;i++){
+    const fade=i<fadeLen?i/fadeLen:1;
+    const w=0.5*(1-Math.cos(2*Math.PI*i/(useLen-1)));
+    padded[i]=raw[i]*w*fade;
+  }
+  const spectrum=fftMagnitude(padded);
+  const half=Math.floor(N/2);
+  const binHz=sampleRate/N;
+
+  // --- 2. HPS（高調波積スペクトル）法で基音検出 ---
+  const hpsOrder=4;
+  const hpsLen=Math.floor(half/hpsOrder);
+  const hps=new Float32Array(hpsLen);
+  for(let b=0;b<hpsLen;b++){
+    let product=spectrum[b];
+    for(let h=2;h<=hpsOrder;h++) product*=spectrum[Math.min(Math.round(b*h),half-1)];
+    hps[b]=product;
+  }
+  const hpsMinBin=Math.max(1,Math.round(20/binHz));
+  const hpsMaxBin=Math.min(Math.round(500/binHz),hpsLen-1);
+  let hpsPeakBin=hpsMinBin,hpsPeakVal=0;
+  for(let b=hpsMinBin;b<=hpsMaxBin;b++){if(hps[b]>hpsPeakVal){hpsPeakVal=hps[b];hpsPeakBin=b;}}
+  // 放物線補間でサブビン精度に
+  const hpsPrev=hpsPeakBin>0?hps[hpsPeakBin-1]:0;
+  const hpsNext=hpsPeakBin<hpsLen-1?hps[hpsPeakBin+1]:0;
+  const hpsDenom=(hpsPrev-2*hpsPeakVal+hpsNext);
+  const hpsFine=hpsDenom!==0?0.5*(hpsPrev-hpsNext)/(-hpsDenom):0;
+  const refinedPitch=(hpsPeakBin+hpsFine)*binHz;
+
+  // --- 3. 自己相関法でピッチ列取得（1/fゆらぎ計算用）---
+  const frameSize=4096,hopSize=512;
+  const minLag=Math.floor(sampleRate/500),maxLag=Math.floor(sampleRate/20);
   const pitchValues=[];
   for(let offset=0;offset+frameSize<raw.length;offset+=hopSize){
     const frame=raw.slice(offset,offset+frameSize);
@@ -398,39 +432,7 @@ function analyze(){
     for(let lag=minLag+1;lag<=maxLag;lag++){if(ac[lag]>bestVal){bestVal=ac[lag];bestLag=lag;}}
     if(bestVal>0)pitchValues.push(sampleRate/bestLag);
   }
-  if(pitchValues.length<10){alert('有声区間が短すぎます。5秒以上の発話でお試しください。');return;}
-  const meanPitch=pitchValues.reduce((a,b)=>a+b,0)/pitchValues.length;
-
-  // --- 2. FFTで全体スペクトル計算 ---
-  // サンプル数を絞ってFFT（最大16384点）
-  const maxSamples=65536;
-  const useLen=Math.min(raw.length, maxSamples);
-  const N=nextPow2(useLen);
-  const padded=new Float32Array(N);
-  // 最初の200msをフェードイン（ポップノイズ対策）＋ハニング窓
-  const fadeLen=Math.floor(sampleRate*0.2);
-  for(let i=0;i<useLen;i++){
-    const fade=i<fadeLen?i/fadeLen:1;
-    const w=0.5*(1-Math.cos(2*Math.PI*i/(useLen-1)));
-    padded[i]=raw[i]*w*fade;
-  }
-  const spectrum=fftMagnitude(padded);
-  const half=Math.floor(N/2);
-  const binHz=sampleRate/N;
-
-  // --- 2.5 スペクトル補正：自己相関の平均ピッチ周辺でFFTピークを探して基音を精密化 ---
-  const acMeanPitch=meanPitch; // 自己相関による推定値を保持
-  const searchLo=acMeanPitch*0.78, searchHi=acMeanPitch*1.22;
-  const sBinLo=Math.max(1,Math.round(searchLo/binHz));
-  const sBinHi=Math.min(Math.round(searchHi/binHz),half-1);
-  let peakBin=sBinLo, peakAmp=0;
-  for(let b=sBinLo;b<=sBinHi;b++){if(spectrum[b]>peakAmp){peakAmp=spectrum[b];peakBin=b;}}
-  // 放物線補間でサブビン精度に補正
-  const prev=peakBin>0?spectrum[peakBin-1]:0;
-  const next=peakBin<half-1?spectrum[peakBin+1]:0;
-  const denom=(prev-2*peakAmp+next);
-  const fineOffset=denom!==0?0.5*(prev-next)/(-denom):0;
-  const refinedPitch=(peakBin+fineOffset)*binHz;
+  if(pitchValues.length<5){alert('有声区間が短すぎます。5秒以上の発話でお試しください。');return;}
 
   // --- 3. 倍音ごとのエネルギー（基音の±10%以内を積算）---
   const harmonicEnergies=[];
