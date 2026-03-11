@@ -604,9 +604,9 @@ function displayResults(r){
 }
 
 // ============================================================
-// 声質タイプ診断（Claude API）
+// 声質タイプ診断（事前定義リスト方式）
 // ============================================================
-async function analyzeVoiceType(){
+function analyzeVoiceType(){
   if(!lastResult)return;
   const btn=document.getElementById('voiceTypeBtn');
   const loading=document.getElementById('voiceTypeLoading');
@@ -616,52 +616,187 @@ async function analyzeVoiceType(){
   loading.classList.remove('hidden');
   content.innerHTML='';
 
-  const r=lastResult;
-  const prompt=`あなたは声質分析の専門家です。以下の音声解析データをもとに、声質タイプと似ている声優を診断してください。
+  setTimeout(()=>{
+    const r=lastResult;
+    const pitch=r.meanPitch;
+    const richness=r.harmonicRichness*100;
+    const formant=r.sfRatio*100;
+    const flicker=r.flickerSlope;
 
-【解析データ】
-- 基音（平均ピッチ）: ${Math.round(r.meanPitch)} Hz
-- 倍音エネルギー比: ${(r.harmonicRichness*100).toFixed(1)}%
-- Singer's Formant（声のハリ）: ${(r.sfRatio*100).toFixed(1)}%
-- 1/fゆらぎ傾き: ${r.flickerSlope.toFixed(2)}（理想値: -1.0）
-- 総合スコア: ${r.totalScore}点
+    // 性別判定（165Hz未満→男性、165Hz以上→女性）
+    const isFemale=pitch>=165;
 
-【回答形式】以下の形式でJSON形式のみで答えてください（説明文・マークダウン不要）:
-{
-  "type": "声質タイプ名（例：低音ダーク系・低音柔らか系・中低音クール系など）",
-  "description": "声質の特徴説明（2〜3文）",
-  "seiyuu": [
-    {"name": "声優名", "reason": "似ている理由（1文）"},
-    {"name": "声優名", "reason": "似ている理由（1文）"},
-    {"name": "声優名", "reason": "似ている理由（1文）"}
-  ],
-  "advice": "イケボに近づくためのワンポイントアドバイス（1〜2文）"
-}`;
+    // 男性タイプ
+    const maleTypes=[
+      {
+        id:'dark_deep',
+        label:'低音ダーク系',
+        match:()=>pitch<100&&formant<15,
+        description:'非常に低く重厚な基音と抑えられた倍音が特徴的な、シリアスで存在感のある声質です。静かな威圧感と落ち着きを兼ね備えています。',
+        seiyuu:[
+          {name:'玄田哲章',reason:'極めて低い基音と重厚な響きが共通しています'},
+          {name:'大塚明夫',reason:'低域の安定感と抑制の効いた倍音が近いです'},
+          {name:'菅生隆之',reason:'重みのある低音と落ち着いたトーンが似ています'},
+        ],
+        advice:'倍音をもう少し豊かにするために、口腔内を広く保って発声してみましょう。声が前に出てくるようになります。'
+      },
+      {
+        id:'warm_deep',
+        label:'低音温厚系',
+        match:()=>pitch<100&&formant>=15,
+        description:'低い基音に豊かな倍音とハリが加わった、温かみと深みを兼ね備えた声質です。包容力があり聴き手を安心させる声です。',
+        seiyuu:[
+          {name:'山寺宏一',reason:'低域の豊かな倍音と温かみのある音色が近いです'},
+          {name:'中田譲治',reason:'低音の中にも倍音の豊かさと表情があります'},
+          {name:'置鮎龍太郎',reason:'温かみある低音と安定した声のハリが共通します'},
+        ],
+        advice:'この声質は非常に魅力的です。腹式呼吸をさらに意識すると、より豊かな響きになります。'
+      },
+      {
+        id:'cool_mid_low',
+        label:'中低音クール系',
+        match:()=>pitch>=100&&pitch<140&&formant<20&&richness<80,
+        description:'中低音域でクールな印象を与える声質です。感情を抑えたスタイリッシュな話し方と相性が良く、知的な雰囲気があります。',
+        seiyuu:[
+          {name:'宮野真守',reason:'中低音のクールなトーンと安定した声質が近いです'},
+          {name:'神谷浩史',reason:'低めの中音域と抑えた倍音の質感が似ています'},
+          {name:'福山潤',reason:'スタイリッシュな中低音の響きが共通します'},
+        ],
+        advice:'Singer\'s Formantを高めると声にさらにハリが出ます。「ハミング」練習で倍音を意識してみましょう。'
+      },
+      {
+        id:'rich_mid_low',
+        label:'中低音豊かさ系',
+        match:()=>pitch>=100&&pitch<140&&richness>=80,
+        description:'中低音域に豊かな倍音が乗った、聴き心地の良い声質です。感情表現が豊かで、ナレーションやドラマに向いています。',
+        seiyuu:[
+          {name:'小野大輔',reason:'豊かな倍音と中低音の安定感が近いです'},
+          {name:'鈴村健一',reason:'倍音の豊かさと中低音の温かみが共通します'},
+          {name:'前野智昭',reason:'中低音域の豊かな響きと表情が似ています'},
+        ],
+        advice:'この声質を活かすには抑揚の付け方が鍵です。感情に合わせてピッチを少し変化させると表現力が増します。'
+      },
+      {
+        id:'bright_mid',
+        label:'中音明瞭系',
+        match:()=>pitch>=140&&pitch<165&&formant>=20,
+        description:'明瞭で聴き取りやすい中音域の声質です。Singer\'s Formantが高く、声の通りが良いのが特徴です。',
+        seiyuu:[
+          {name:'梶裕貴',reason:'明瞭な中音域と高いSinger\'s Formantが近いです'},
+          {name:'島﨑信長',reason:'声の通りの良さと中音域の明瞭さが共通します'},
+          {name:'内山昂輝',reason:'クリアな中音域の響きが似ています'},
+        ],
+        advice:'基音をもう少し下げるトレーニングをすると、より深みのある声になります。胸に響かせる意識を持ちましょう。'
+      },
+      {
+        id:'natural_mid',
+        label:'中音ナチュラル系',
+        match:()=>pitch>=140&&pitch<165&&formant<20,
+        description:'自然で親しみやすい中音域の声質です。日常会話に近い自然なトーンが特徴で、聴衆に親近感を与えます。',
+        seiyuu:[
+          {name:'花江夏樹',reason:'自然で親しみやすい中音域のトーンが近いです'},
+          {name:'榎木淳弥',reason:'ナチュラルな中音と柔らかい声質が似ています'},
+          {name:'石川界人',reason:'自然体の中音域と温かみが共通します'},
+        ],
+        advice:'倍音を豊かにするため、発声時に口腔内を広く意識してみましょう。声の深みが増します。'
+      },
+    ];
 
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
-        messages:[{role:'user',content:prompt}]
-      })
-    });
-    const data=await res.json();
-    const text=data.content.map(i=>i.text||'').join('');
-    const clean=text.replace(/```json|```/g,'').trim();
-    const parsed=JSON.parse(clean);
+    // 女性タイプ
+    const femaleTypes=[
+      {
+        id:'f_deep_cool',
+        label:'低音クール系（女性）',
+        match:()=>pitch<210&&formant<20,
+        description:'女性としては低めの基音を持つ、落ち着いたクールな声質です。大人っぽい色気と知性を感じさせ、ハスキーな魅力もあります。',
+        seiyuu:[
+          {name:'沢城みゆき',reason:'低めの基音と落ち着いたクールなトーンが共通します'},
+          {name:'田中敦子',reason:'深みのある低音域と抑制のきいた倍音が近いです'},
+          {name:'勝生真沙子',reason:'大人びた低音と落ち着いた声の質感が似ています'},
+        ],
+        advice:'この声質は非常に個性的な武器になります。声のハリをもう少し高めると、さらに聴き応えのある声になります。'
+      },
+      {
+        id:'f_deep_warm',
+        label:'低音温かさ系（女性）',
+        match:()=>pitch<210&&formant>=20,
+        description:'女性としては低めでありながら豊かな倍音とハリを持つ、包容力のある温かい声質です。聴き手を安心させる母性的な魅力があります。',
+        seiyuu:[
+          {name:'林原めぐみ',reason:'低めの基音に豊かな倍音が乗った温かみが近いです'},
+          {name:'坂本真綾',reason:'深みある低音と豊かな倍音の組み合わせが似ています'},
+          {name:'今井麻美',reason:'低音域の温かみと安定した声のハリが共通します'},
+        ],
+        advice:'この声質は表現の幅が広いのが強みです。ゆらぎを意識した抑揚をつけるとさらに魅力的になります。'
+      },
+      {
+        id:'f_mid_clear',
+        label:'中音クリア系（女性）',
+        match:()=>pitch>=210&&pitch<260&&formant>=20,
+        description:'クリアで聴き取りやすい中音域の声質です。明瞭な発音と豊かなハリが特徴で、アナウンサーや朗読に向いています。',
+        seiyuu:[
+          {name:'水樹奈々',reason:'クリアな中音域と高いSinger\'s Formantが近いです'},
+          {name:'茅野愛衣',reason:'明瞭で聴き取りやすい中音域の声質が似ています'},
+          {name:'花澤香菜',reason:'クリアな声の通りと中音域の明瞭さが共通します'},
+        ],
+        advice:'倍音をさらに豊かにするハミング練習がおすすめです。声に深みと温かみが加わります。'
+      },
+      {
+        id:'f_mid_natural',
+        label:'中音ナチュラル系（女性）',
+        match:()=>pitch>=210&&pitch<260&&formant<20,
+        description:'自然体で親しみやすい中音域の声質です。日常会話に近い柔らかいトーンが特徴で、聴き手に安心感を与えます。',
+        seiyuu:[
+          {name:'悠木碧',reason:'自然で親しみやすい中音域のトーンが近いです'},
+          {name:'早見沙織',reason:'ナチュラルな中音と柔らかい声質が似ています'},
+          {name:'佐倉綾音',reason:'自然体の中音域と温かみが共通します'},
+        ],
+        advice:'声のハリを高めるとより存在感が増します。腹式呼吸で声を前に飛ばす意識を持ちましょう。'
+      },
+      {
+        id:'f_high_bright',
+        label:'高音華やか系（女性）',
+        match:()=>pitch>=260&&formant>=15,
+        description:'高めの基音と豊かなハリが特徴的な、華やかで明るい声質です。感情表現が豊かで活発な印象を与えます。',
+        seiyuu:[
+          {name:'竹達彩奈',reason:'高めの基音と豊かなSinger\'s Formantが近いです'},
+          {name:'日高里菜',reason:'華やかな高音域と明るい声の質感が共通します'},
+          {name:'小倉唯',reason:'明るく華やかな高音の響きが似ています'},
+        ],
+        advice:'低音域を鍛えると声域が広がります。腹式呼吸で胸に響かせる練習を取り入れましょう。'
+      },
+      {
+        id:'f_high_soft',
+        label:'高音柔らか系（女性）',
+        match:()=>pitch>=260&&formant<15,
+        description:'高めの基音に柔らかく繊細な倍音が特徴的な声質です。透明感があり、癒し系の雰囲気を持っています。',
+        seiyuu:[
+          {name:'能登麻美子',reason:'高音域の柔らかく繊細な倍音の質感が近いです'},
+          {name:'種田梨沙',reason:'透明感のある高音と柔らかい声質が似ています'},
+          {name:'雨宮天',reason:'繊細で柔らかい高音の響きが共通します'},
+        ],
+        advice:'声のハリを高める練習をすると表現力が増します。感情を込めた音読練習がおすすめです。'
+      },
+    ];
 
+    const types=isFemale?femaleTypes:maleTypes;
+
+    // ゆらぎボーナスコメント
+    let flickerComment='';
+    if(Math.abs(flicker+1.0)<=0.2) flickerComment='また、声のゆらぎが理想的な1/f特性に非常に近く、聴き手を自然に引き込む魅力があります。';
+    else if(Math.abs(flicker+1.0)<=0.4) flickerComment='声のゆらぎも比較的良好で、自然な抑揚があります。';
+
+    const matched=types.find(t=>t.match())||types[5];
+
+    loading.classList.add('hidden');
     content.innerHTML=`
       <div style="margin-bottom:14px;">
         <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:4px;">声質タイプ</div>
-        <div style="font-size:1.3rem;font-weight:700;color:var(--accent);font-family:'Space Mono',monospace;">${parsed.type}</div>
-        <div style="font-size:.9rem;color:var(--text-sub);margin-top:6px;line-height:1.7;">${parsed.description}</div>
+        <div style="font-size:1.3rem;font-weight:700;color:var(--accent);font-family:'Space Mono',monospace;">${matched.label}</div>
+        <div style="font-size:.9rem;color:var(--text-sub);margin-top:6px;line-height:1.7;">${matched.description}${flickerComment?'<br><br>'+flickerComment:''}</div>
       </div>
       <div style="margin-bottom:14px;">
         <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:8px;">🎙️ 似ている声優さん</div>
-        ${parsed.seiyuu.map((s,i)=>`
+        ${matched.seiyuu.map((s,i)=>`
           <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:10px;background:#0a0c10;border-radius:8px;border:1px solid var(--border);">
             <span style="color:var(--accent4);font-family:'Space Mono',monospace;font-size:.8rem;min-width:20px;">${i+1}.</span>
             <div>
@@ -672,14 +807,9 @@ async function analyzeVoiceType(){
       </div>
       <div style="padding:10px 14px;background:linear-gradient(135deg,#1a2a1a,#1a1a2a);border-radius:8px;border:1px solid var(--border);">
         <div style="font-size:.8rem;color:var(--accent3);margin-bottom:4px;">💡 アドバイス</div>
-        <div style="font-size:.88rem;color:var(--text-sub);line-height:1.7;">${parsed.advice}</div>
+        <div style="font-size:.88rem;color:var(--text-sub);line-height:1.7;">${matched.advice}</div>
       </div>`;
-  }catch(e){
-    content.innerHTML=`<p style="color:var(--accent2);font-size:.9rem;">診断に失敗しました。もう一度お試しください。</p>`;
-    btn.classList.remove('hidden');
-  }finally{
-    loading.classList.add('hidden');
-  }
+  },600);
 }
 
 // ============================================================
