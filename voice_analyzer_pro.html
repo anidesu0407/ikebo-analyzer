@@ -539,24 +539,24 @@ async function analyzeAudio(){
   }
 
   // --- 7. Jitter（ピッチ周期変動）---
-  // 有声フレームのピッチ列から周期を計算、外れ値除去後にジッター算出
-  // pitchValuesは既に無声区間除去済み（rms<0.001除外）
-  // 中央値±30%の範囲に絞って外れ値除去
-  const pitchMedian=medianPitch;
-  const validPitches=pitchValues.filter(p=>p>pitchMedian*0.7&&p<pitchMedian*1.3);
-  const periods=validPitches.map(p=>sampleRate/p); // サンプル数単位の周期
-  let jitterAbsSum=0;
-  for(let i=1;i<periods.length;i++) jitterAbsSum+=Math.abs(periods[i]-periods[i-1]);
+  // hopSize=512は細かすぎるため、約10msごとに1点に間引く
+  // 10ms = sampleRate*0.01サンプル → hopSize単位で何フレームか
+  const jitterDecimate=Math.max(1,Math.round(sampleRate*0.01/512));
+  const decimatedPitches=[];
+  for(let i=0;i<pitchValues.length;i+=jitterDecimate) decimatedPitches.push(pitchValues[i]);
+  // 中央値±20%で外れ値除去（より厳しく）
+  const validPitches=decimatedPitches.filter(p=>p>medianPitch*0.8&&p<medianPitch*1.2);
+  const periods=validPitches.map(p=>sampleRate/p);
   const periodMean=periods.length>0?periods.reduce((a,b)=>a+b,0)/periods.length:1;
-  // RAP Jitter（相対平均摂動）: 連続3点の平均との差
+  // RAP Jitter（連続3点平均との相対差）
   let rapSum=0;
   for(let i=1;i<periods.length-1;i++){
     const avg3=(periods[i-1]+periods[i]+periods[i+1])/3;
     rapSum+=Math.abs(periods[i]-avg3);
   }
   const jitter=periods.length>2?(rapSum/(periods.length-2))/periodMean*100:0;
-  // スコア: <0.2%→100, 0.5%→85, 1%→65, 2%→40, >3%→0
-  const jitterScore=Math.max(0,Math.min(100,Math.round(100-jitter*35)));
+  // スコア: <0.2%→100, 0.5%→85, 1%→65, 2%→35, >3%→0
+  const jitterScore=Math.max(0,Math.min(100,Math.round(100-jitter*32)));
 
   // --- 8. Shimmer（音量変動）---
   // RMS列から外れ値除去後、dBシマー計算
