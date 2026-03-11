@@ -216,7 +216,15 @@
 
   <!-- 数値メトリクス -->
   <div class="results-grid">
-    <div class="metric"><div class="metric-label">基音（平均ピッチ）</div><div class="metric-value good" id="metPitch">−</div><div class="metric-sub">Hz</div></div>
+    <div class="metric">
+      <div class="metric-label">基音（平均ピッチ）</div>
+      <div class="metric-value good" id="metPitch">−</div>
+      <div class="metric-sub" id="metPitchSub">Hz</div>
+      <div style="margin-top:10px;font-size:.7rem;color:var(--text-dim);line-height:1.8;border-top:1px solid var(--border);padding-top:8px;">
+        <div>♂ 低め &nbsp;85–110Hz &nbsp;／ 平均 110–150Hz</div>
+        <div>♀ 低め 165–210Hz ／ 平均 210–280Hz</div>
+      </div>
+    </div>
     <div class="metric"><div class="metric-label">倍音エネルギー比</div><div class="metric-value good" id="metHRatio">−</div><div class="metric-sub">基音に対する倍音の強さ</div></div>
     <div class="metric"><div class="metric-label">Singer's Formant</div><div class="metric-value good" id="metFormant">−</div><div class="metric-sub">2〜4kHz帯エネルギー</div></div>
     <div class="metric"><div class="metric-label">1/fゆらぎ 傾き</div><div class="metric-value" id="metSlope">−</div><div class="metric-sub">理想値: −1.0 付近</div></div>
@@ -543,6 +551,17 @@ function displayResults(r){
   // メトリクス
   document.getElementById('metPitch').textContent=Math.round(r.meanPitch)+' Hz';
   document.getElementById('metPitch').className='metric-value '+colorClass(r.pitchScore);
+  // 基音の位置づけコメント
+  const pitch=r.meanPitch;
+  let pitchComment='';
+  if(pitch<85)pitchComment='♂ 男性でも極めて低い域';
+  else if(pitch<110)pitchComment='♂ 男性・低め';
+  else if(pitch<150)pitchComment='♂ 男性・平均的';
+  else if(pitch<165)pitchComment='♂/♀ 境界域';
+  else if(pitch<210)pitchComment='♀ 女性・低め';
+  else if(pitch<280)pitchComment='♀ 女性・平均的';
+  else pitchComment='♀ 女性・高め';
+  document.getElementById('metPitchSub').textContent='Hz — '+pitchComment;
   document.getElementById('metHRatio').textContent=(r.harmonicRichness*100).toFixed(1)+'%';
   document.getElementById('metHRatio').className='metric-value '+colorClass(r.richScore);
   document.getElementById('metFormant').textContent=(r.sfRatio*100).toFixed(1)+'%';
