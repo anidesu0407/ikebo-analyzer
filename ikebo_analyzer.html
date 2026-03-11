@@ -235,6 +235,19 @@
   <div class="canvas-wrap" style="margin-bottom:16px;"><canvas id="harmonicCanvas" height="200"></canvas></div>
   <div class="harmonic-chart-wrap" id="harmonicChart"></div>
 
+  <!-- 声質診断 -->
+  <div id="voiceTypeSection" class="hidden" style="margin-top:20px;">
+    <div class="card-title">🎭 声質タイプ診断</div>
+    <div id="voiceTypeResult" style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;min-height:80px;">
+      <div id="voiceTypeLoading" class="hidden" style="text-align:center;color:var(--text-dim);padding:20px;">
+        <div class="spinner" style="margin:0 auto 8px;"></div>
+        <p style="font-size:.9rem;">AIが声質を分析中…</p>
+      </div>
+      <div id="voiceTypeContent"></div>
+    </div>
+    <button class="btn btn-secondary" id="voiceTypeBtn" onclick="analyzeVoiceType()" style="margin-top:12px;width:100%;">🎭 声質タイプ・似ている声優を診断する</button>
+  </div>
+
   <!-- シェア -->
   <div class="share-row">
     <button class="btn btn-secondary" onclick="saveImage()">💾 画像で保存</button>
@@ -580,8 +593,93 @@ function displayResults(r){
   // 倍音グラフ canvas
   requestAnimationFrame(()=>drawHarmonicCanvas(r));
 
+  // 声質診断セクションを表示（内容はリセット）
+  document.getElementById('voiceTypeSection').classList.remove('hidden');
+  document.getElementById('voiceTypeContent').innerHTML='';
+  document.getElementById('voiceTypeLoading').classList.add('hidden');
+  document.getElementById('voiceTypeBtn').classList.remove('hidden');
+
   document.getElementById('resultCard').classList.remove('hidden');
   document.getElementById('resultCard').scrollIntoView({behavior:'smooth'});
+}
+
+// ============================================================
+// 声質タイプ診断（Claude API）
+// ============================================================
+async function analyzeVoiceType(){
+  if(!lastResult)return;
+  const btn=document.getElementById('voiceTypeBtn');
+  const loading=document.getElementById('voiceTypeLoading');
+  const content=document.getElementById('voiceTypeContent');
+
+  btn.classList.add('hidden');
+  loading.classList.remove('hidden');
+  content.innerHTML='';
+
+  const r=lastResult;
+  const prompt=`あなたは声質分析の専門家です。以下の音声解析データをもとに、声質タイプと似ている声優を診断してください。
+
+【解析データ】
+- 基音（平均ピッチ）: ${Math.round(r.meanPitch)} Hz
+- 倍音エネルギー比: ${(r.harmonicRichness*100).toFixed(1)}%
+- Singer's Formant（声のハリ）: ${(r.sfRatio*100).toFixed(1)}%
+- 1/fゆらぎ傾き: ${r.flickerSlope.toFixed(2)}（理想値: -1.0）
+- 総合スコア: ${r.totalScore}点
+
+【回答形式】以下の形式でJSON形式のみで答えてください（説明文・マークダウン不要）:
+{
+  "type": "声質タイプ名（例：低音ダーク系・低音柔らか系・中低音クール系など）",
+  "description": "声質の特徴説明（2〜3文）",
+  "seiyuu": [
+    {"name": "声優名", "reason": "似ている理由（1文）"},
+    {"name": "声優名", "reason": "似ている理由（1文）"},
+    {"name": "声優名", "reason": "似ている理由（1文）"}
+  ],
+  "advice": "イケボに近づくためのワンポイントアドバイス（1〜2文）"
+}`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data=await res.json();
+    const text=data.content.map(i=>i.text||'').join('');
+    const clean=text.replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(clean);
+
+    content.innerHTML=`
+      <div style="margin-bottom:14px;">
+        <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:4px;">声質タイプ</div>
+        <div style="font-size:1.3rem;font-weight:700;color:var(--accent);font-family:'Space Mono',monospace;">${parsed.type}</div>
+        <div style="font-size:.9rem;color:var(--text-sub);margin-top:6px;line-height:1.7;">${parsed.description}</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:8px;">🎙️ 似ている声優さん</div>
+        ${parsed.seiyuu.map((s,i)=>`
+          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:10px;background:#0a0c10;border-radius:8px;border:1px solid var(--border);">
+            <span style="color:var(--accent4);font-family:'Space Mono',monospace;font-size:.8rem;min-width:20px;">${i+1}.</span>
+            <div>
+              <div style="font-weight:600;color:var(--text-main);font-size:.95rem;">${s.name}</div>
+              <div style="font-size:.82rem;color:var(--text-dim);margin-top:2px;">${s.reason}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+      <div style="padding:10px 14px;background:linear-gradient(135deg,#1a2a1a,#1a1a2a);border-radius:8px;border:1px solid var(--border);">
+        <div style="font-size:.8rem;color:var(--accent3);margin-bottom:4px;">💡 アドバイス</div>
+        <div style="font-size:.88rem;color:var(--text-sub);line-height:1.7;">${parsed.advice}</div>
+      </div>`;
+  }catch(e){
+    content.innerHTML=`<p style="color:var(--accent2);font-size:.9rem;">診断に失敗しました。もう一度お試しください。</p>`;
+    btn.classList.remove('hidden');
+  }finally{
+    loading.classList.add('hidden');
+  }
 }
 
 // ============================================================
