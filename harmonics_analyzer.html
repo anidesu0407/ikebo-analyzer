@@ -206,7 +206,7 @@ function detectPitch(timeDomainData, sampleRate){
   if(rms<0.01)return null;
 
   const minLag=Math.floor(sampleRate/500);
-  const maxLag=Math.floor(sampleRate/50);
+  const maxLag=Math.floor(sampleRate/80);
   let bestLag=-1,bestVal=-Infinity;
   for(let lag=minLag;lag<=maxLag;lag++){
     let s=0;
