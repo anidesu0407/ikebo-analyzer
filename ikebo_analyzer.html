@@ -221,8 +221,8 @@
       <div class="metric-value good" id="metPitch">−</div>
       <div class="metric-sub" id="metPitchSub">Hz</div>
       <div style="margin-top:10px;font-size:.7rem;color:var(--text-dim);line-height:1.8;border-top:1px solid var(--border);padding-top:8px;">
-        <div>♂ 低め &nbsp;85–110Hz &nbsp;／ 平均 110–150Hz</div>
-        <div>♀ 低め 165–210Hz ／ 平均 210–280Hz</div>
+        <div>男性 低め &nbsp;85–110Hz &nbsp;／ 平均 110–150Hz</div>
+        <div>女性 低め 165–210Hz ／ 平均 210–280Hz</div>
       </div>
     </div>
     <div class="metric"><div class="metric-label">倍音エネルギー比</div><div class="metric-value good" id="metHRatio">−</div><div class="metric-sub">基音に対する倍音の強さ</div></div>
@@ -232,8 +232,8 @@
 
   <!-- 倍音バー -->
   <div class="card-title" style="margin-top:4px">倍音スペクトル</div>
+  <div class="canvas-wrap" style="margin-bottom:16px;"><canvas id="harmonicCanvas" height="200"></canvas></div>
   <div class="harmonic-chart-wrap" id="harmonicChart"></div>
-  <div class="canvas-wrap" style="margin-top:12px;"><canvas id="harmonicCanvas" height="160"></canvas></div>
 
   <!-- シェア -->
   <div class="share-row">
@@ -561,13 +561,13 @@ function displayResults(r){
   // 基音の位置づけコメント
   const pitch=r.meanPitch;
   let pitchComment='';
-  if(pitch<85)pitchComment='♂ 男性でも極めて低い域';
-  else if(pitch<110)pitchComment='♂ 男性・低め';
-  else if(pitch<150)pitchComment='♂ 男性・平均的';
-  else if(pitch<165)pitchComment='♂/♀ 境界域';
-  else if(pitch<210)pitchComment='♀ 女性・低め';
-  else if(pitch<280)pitchComment='♀ 女性・平均的';
-  else pitchComment='♀ 女性・高め';
+  if(pitch<85)pitchComment='男性でも極めて低い域';
+  else if(pitch<110)pitchComment='男性・低め';
+  else if(pitch<150)pitchComment='男性・平均的';
+  else if(pitch<165)pitchComment='男性/女性 境界域';
+  else if(pitch<210)pitchComment='女性・低め';
+  else if(pitch<280)pitchComment='女性・平均的';
+  else pitchComment='女性・高め';
   document.getElementById('metPitchSub').textContent='Hz — '+pitchComment;
   document.getElementById('metHRatio').textContent=(r.harmonicRichness*100).toFixed(1)+'%';
   document.getElementById('metHRatio').className='metric-value '+colorClass(r.richScore);
@@ -613,7 +613,7 @@ function buildHarmonicBars(ratios){
 // ============================================================
 function drawHarmonicCanvas(r){
   const canvas=document.getElementById('harmonicCanvas');
-  const W=canvas.offsetWidth*devicePixelRatio,H=160*devicePixelRatio;
+  const W=canvas.offsetWidth*devicePixelRatio,H=200*devicePixelRatio;
   canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
@@ -694,14 +694,14 @@ function drawHarmonicCanvas(r){
     ctx.strokeStyle=HARMONIC_COLORS[h]+'99';ctx.lineWidth=1.5*devicePixelRatio;ctx.setLineDash([3*devicePixelRatio,3*devicePixelRatio]);
     ctx.beginPath();ctx.moveTo(x,pad.t+ph);ctx.lineTo(x,y+6*devicePixelRatio);ctx.stroke();ctx.setLineDash([]);
     // 丸
-    ctx.beginPath();ctx.arc(x,y,4*devicePixelRatio,0,Math.PI*2);ctx.fillStyle=HARMONIC_COLORS[h];ctx.fill();
+    ctx.beginPath();ctx.arc(x,y,5*devicePixelRatio,0,Math.PI*2);ctx.fillStyle=HARMONIC_COLORS[h];ctx.fill();
     // 倍音番号
-    ctx.fillStyle=HARMONIC_COLORS[h];ctx.font=`bold ${9*devicePixelRatio}px monospace`;ctx.textAlign='center';
-    ctx.fillText(h+1,x,y-16*devicePixelRatio);
+    ctx.fillStyle=HARMONIC_COLORS[h];ctx.font=`bold ${10*devicePixelRatio}px monospace`;ctx.textAlign='center';
+    ctx.fillText(h+1,x,y-18*devicePixelRatio);
     // Hz表示
     const hzLabel=peakFreq>=1000?(peakFreq/1000).toFixed(1)+'k':Math.round(peakFreq)+'';
-    ctx.fillStyle=HARMONIC_COLORS[h]+'cc';ctx.font=`${8*devicePixelRatio}px monospace`;
-    ctx.fillText(hzLabel+'Hz',x,y-6*devicePixelRatio);
+    ctx.fillStyle=HARMONIC_COLORS[h]+'cc';ctx.font=`${9*devicePixelRatio}px monospace`;
+    ctx.fillText(hzLabel+'Hz',x,y-7*devicePixelRatio);
   }
 
   // 副倍音マーカー（検出されたもののみ・ダイヤ形・橙色）
