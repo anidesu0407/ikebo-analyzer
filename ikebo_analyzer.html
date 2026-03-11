@@ -413,7 +413,7 @@ function analyze(){
 
   // --- 2. フレームごと自己相関でピッチ列取得 → 中央値で基音確定 ---
   const frameSize=4096,hopSize=512;
-  const minLag=Math.floor(sampleRate/500),maxLag=Math.floor(sampleRate/20);
+  const minLag=Math.floor(sampleRate/400),maxLag=Math.floor(sampleRate/80);
   const pitchValues=[];
   for(let offset=0;offset+frameSize<raw.length;offset+=hopSize){
     const frame=raw.slice(offset,offset+frameSize);
@@ -434,7 +434,7 @@ function analyze(){
   const medianPitch=sorted[Math.floor(sorted.length/2)];
 
   // FFTスペクトル補正：中央値±15%の範囲でピーク探索→放物線補間
-  const sLo=Math.max(1,Math.round(medianPitch*0.85/binHz));
+  const sLo=Math.max(Math.round(80/binHz),Math.round(medianPitch*0.85/binHz));
   const sHi=Math.min(Math.round(medianPitch*1.15/binHz),half-1);
   let peakBin=sLo,peakAmp=0;
   for(let b=sLo;b<=sHi;b++){if(spectrum[b]>peakAmp){peakAmp=spectrum[b];peakBin=b;}}
