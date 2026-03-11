@@ -785,8 +785,9 @@ function analyzeVoiceType(){
     if(Math.abs(flicker+1.0)<=0.2) flickerComment='また、声のゆらぎが理想的な1/f特性に非常に近く、聴き手を自然に引き込む魅力があります。';
     else if(Math.abs(flicker+1.0)<=0.4) flickerComment='声のゆらぎも比較的良好で、自然な抑揚があります。';
 
-    const matched=types.find(t=>t.match())||types[5];
+    const matched=types.find(t=>t.match())||types[types.length-1];
 
+    try{
     loading.classList.add('hidden');
     content.innerHTML=`
       <div style="margin-bottom:14px;">
@@ -809,6 +810,12 @@ function analyzeVoiceType(){
         <div style="font-size:.8rem;color:var(--accent3);margin-bottom:4px;">💡 アドバイス</div>
         <div style="font-size:.88rem;color:var(--text-sub);line-height:1.7;">${matched.advice}</div>
       </div>`;
+    }catch(e){
+      console.error('声質診断エラー:',e);
+      loading.classList.add('hidden');
+      content.innerHTML=`<p style="color:var(--accent2);font-size:.9rem;">エラー: ${e.message}</p>`;
+      btn.classList.remove('hidden');
+    }
   },600);
 }
 
