@@ -310,6 +310,11 @@
 <!-- ガイド -->
 <div class="card">
   <div class="card-title">読み方ガイド</div>
+  <div style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
+    <span style="font-size:.85rem;"><span style="color:var(--accent);font-weight:700;">● 緑</span> = 良好</span>
+    <span style="font-size:.85rem;"><span style="color:var(--accent4);font-weight:700;">● 黄</span> = もう少し</span>
+    <span style="font-size:.85rem;"><span style="color:var(--accent2);font-weight:700;">● 赤</span> = 要改善</span>
+  </div>
   <ul class="howto">
     <li><strong style="color:var(--accent)">基音が低いほど</strong>有利。男性80〜165Hz、女性165〜260Hzが目安</li>
     <li><strong style="color:var(--accent3)">倍音エネルギー比</strong>が高いほど声に深みと温かみがある</li>
@@ -625,10 +630,9 @@ async function analyzeAudio(){
   const intonationSemitones=trimmedP.length>1?12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]):0;
 
   // --- 10b. スペクトル傾斜（dB/octave）---
-  // 対数周波数軸でスペクトルエネルギーの回帰傾きを計算
-  // 200Hz〜8kHzの範囲でオクターブごとの平均エネルギーを求めて線形回帰
+  // 500Hz〜8kHzの範囲でオクターブごとの平均エネルギーを求めて線形回帰
   {
-    const tiltBands=[[200,400],[400,800],[800,1600],[1600,3200],[3200,6400]];
+    const tiltBands=[[500,1000],[1000,2000],[2000,4000],[4000,8000]];
     const tiltX=[],tiltY=[];
     for(const [lo,hi] of tiltBands){
       const loBin=Math.floor(lo/binHz),hiBin=Math.min(Math.ceil(hi/binHz),half-1);
@@ -640,6 +644,7 @@ async function analyzeAudio(){
       }
     }
     var spectralTilt=tiltX.length>2?linReg(tiltX,tiltY).slope:0;
+    spectralTilt=Math.max(-20,Math.min(0,spectralTilt));
   }
 
   // --- 11. スコア計算（6軸）---
@@ -698,7 +703,7 @@ async function analyzeAudio(){
     totalScore,pitchScore,richScore,formantScore,flickerScore,stabilityScore,hnrScore,
     flickerSlope,meanPitch:refinedPitch,harmonicRatios,sfRatio,harmonicRichness,
     jitter,shimmer,hnrDb,purity,intonationSemitones,spectralTilt,
-    vClass,vTitle,vIcon,
+    vClass,vTitle,vIcon,vDesc,
     frames:pitchValues.length,spectrum,half,binHz,sampleRate,subHarmonics
   };
 
@@ -714,7 +719,7 @@ function displayResults(r){
   document.getElementById('verdictBox').className='verdict '+r.vClass;
   document.getElementById('verdictIcon').textContent=r.vIcon;
   document.getElementById('verdictTitle').textContent=r.vTitle;
-  document.getElementById('verdictDesc').textContent=r.totalScore+'点 — '+r.vDesc;
+  document.getElementById('verdictDesc').textContent=r.totalScore+'点 — '+(r.vDesc||'');
 
   // スコアゲージ
   document.getElementById('scoreLabel').textContent=r.totalScore+'点';
@@ -777,7 +782,7 @@ function displayResults(r){
   // スペクトル傾斜
   const tilt=r.spectralTilt||0;
   document.getElementById('metTilt').textContent=tilt.toFixed(1)+' dB/oct';
-  document.getElementById('metTilt').className='metric-value '+(tilt>=-8&&tilt<=-2?'good':tilt>=-12&&tilt<=-1?'warn':'bad');
+  document.getElementById('metTilt').className='metric-value '+(tilt<=-2&&tilt>=-10?'good':tilt<=-1&&tilt>=-14?'warn':'bad');
 
   // レーダーチャート
   requestAnimationFrame(()=>drawRadar(r));
