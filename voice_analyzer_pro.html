@@ -573,23 +573,47 @@ async function analyzeAudio(){
   // 安定性スコア（JitterとShimmerの平均）
   const stabilityScore=Math.round((jitterScore+shimmerScore)/2);
 
-  // --- 9. HNR（調和雑音比）FFTスペクトルから計算 ---
-  // 倍音エネルギー合計 vs 全体エネルギーの比からHNRを算出（スペクトル法）
-  let harmonicPower=0,totalPower=0;
-  for(let b=Math.floor(80/binHz);b<half;b++){
-    const freq=b*binHz;
-    totalPower+=spectrum[b]*spectrum[b];
-    // 各倍音の±8%以内にあるビンを倍音とみなす
+  // --- 9. HNR（調和雑音比）ノイズフロア推定法 ---
+  // 倍音ピーク間の「谷」をノイズフロアとして推定し、倍音エネルギーとの比を計算
+  {
+    // 8kHzまでのビン範囲
+    const hnrMinBin=Math.floor(80/binHz);
+    const hnrMaxBin=Math.min(Math.floor(8000/binHz),half-1);
+
+    // Step1: 各倍音のピークエネルギーを収集
+    let totalHarmonicPow=0;
+    const harmonicPeaks=[];
     for(let h=1;h<=12;h++){
       const hFreq=refinedPitch*h;
-      if(hFreq>sampleRate/2)break;
-      if(Math.abs(freq-hFreq)/hFreq<0.08){harmonicPower+=spectrum[b]*spectrum[b];break;}
+      if(hFreq>8000)break;
+      const hw=Math.max(2,Math.round(hFreq*0.12/binHz)); // ±12%
+      const hCenter=Math.round(hFreq/binHz);
+      const lo=Math.max(hnrMinBin,hCenter-hw);
+      const hi=Math.min(hnrMaxBin,hCenter+hw);
+      let peakPow=0;
+      for(let b=lo;b<=hi;b++) peakPow+=spectrum[b]*spectrum[b];
+      totalHarmonicPow+=peakPow;
+      harmonicPeaks.push({lo,hi,pow:peakPow});
     }
+
+    // Step2: 倍音ピーク間の谷ビンを集めてノイズフロアを推定
+    const noiseBins=[];
+    for(let b=hnrMinBin;b<=hnrMaxBin;b++){
+      let isHarmonic=false;
+      for(const p of harmonicPeaks){if(b>=p.lo&&b<=p.hi){isHarmonic=true;break;}}
+      if(!isHarmonic) noiseBins.push(spectrum[b]*spectrum[b]);
+    }
+    // ノイズビンの中央値×ビン数でノイズ総量推定
+    noiseBins.sort((a,b)=>a-b);
+    const noiseMedian=noiseBins.length>0?noiseBins[Math.floor(noiseBins.length*0.5)]:1e-30;
+    const estimatedNoisePow=Math.max(1e-30,noiseMedian*(hnrMaxBin-hnrMinBin));
+
+    var hnrDb=totalHarmonicPow>0?10*Math.log10(totalHarmonicPow/estimatedNoisePow):-10;
+    // 現実的な範囲にクランプ（-5〜35dB）
+    hnrDb=Math.max(-5,Math.min(35,hnrDb));
   }
-  const noisePower=Math.max(1e-30,totalPower-harmonicPower);
-  const hnrDb=harmonicPower>0?10*Math.log10(harmonicPower/noisePower):-20;
-  // スコア: >20dB→100, 15dB→85, 10dB→65, 5dB→45, 0dB→25, <0dB→0
-  const hnrScore=Math.max(0,Math.min(100,Math.round(hnrDb*4+20)));
+  // スコア: >25dB→100, 20dB→90, 15dB→75, 10dB→55, 5dB→35, <0dB→10
+  const hnrScore=Math.max(0,Math.min(100,Math.round((hnrDb/25)*90+10)));
 
   // --- 10. 抑揚の幅（半音数）---
   // 上下10%除去後、さらに中央値±1オクターブ以内に絞る
