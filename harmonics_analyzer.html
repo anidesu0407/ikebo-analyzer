@@ -3,75 +3,98 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Harmonics Analyzer</title>
+<title>Voice Analyzer Pro</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
   --bg:#0a0c10;--panel:#111318;--border:#1e2330;
-  --accent:#4ff0b0;--accent2:#ff6b6b;--accent3:#7eb8ff;--accent4:#ffd166;
+  --accent:#4ff0b0;--accent2:#ff6b6b;--accent3:#7eb8ff;--accent4:#ffd166;--accent5:#c084fc;
   --text-main:#e8eaf0;--text-sub:#9aa0b0;--text-dim:#4a5060;
 }
 body{background:var(--bg);color:var(--text-main);font-family:'Zen Kaku Gothic New',sans-serif;min-height:100vh;
-  background-image:radial-gradient(ellipse at 20% 50%,rgba(79,240,176,.04) 0%,transparent 60%),
-                   radial-gradient(ellipse at 80% 20%,rgba(126,184,255,.04) 0%,transparent 60%);}
-h1{font-family:'Space Mono',monospace;font-size:1rem;letter-spacing:.2em;color:var(--accent);text-align:center;padding:20px 0 4px;}
-.sub-title{text-align:center;font-size:.75rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:16px;}
+  background-image:radial-gradient(ellipse at 15% 50%,rgba(79,240,176,.05) 0%,transparent 60%),
+                   radial-gradient(ellipse at 85% 20%,rgba(126,184,255,.05) 0%,transparent 60%);}
 
-.container{max-width:800px;margin:0 auto;padding:0 16px 40px;}
+.container{max-width:900px;margin:0 auto;padding:0 16px 60px;}
+
+h1{font-family:'Space Mono',monospace;font-size:1rem;letter-spacing:.25em;color:var(--accent);text-align:center;padding:22px 0 4px;}
+.sub-title{text-align:center;font-size:.72rem;color:var(--text-dim);letter-spacing:.15em;margin-bottom:18px;}
 
 /* カード */
 .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;}
+.card-title{font-family:'Space Mono',monospace;font-size:.72rem;letter-spacing:.12em;color:var(--text-dim);margin-bottom:10px;}
 
 /* コントロール */
 .ctrl-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.btn{padding:8px 20px;border-radius:8px;border:none;cursor:pointer;font-family:'Space Mono',monospace;font-size:.85rem;transition:all .15s;}
+.btn{padding:8px 22px;border-radius:8px;border:none;cursor:pointer;font-family:'Space Mono',monospace;font-size:.85rem;transition:all .15s;}
 .btn-start{background:var(--accent);color:#0a0c10;font-weight:700;}
 .btn-start:hover{filter:brightness(1.1);}
 .btn-start.active{background:var(--accent2);color:#fff;}
-.btn-start:disabled{opacity:.4;cursor:not-allowed;}
 .status{font-size:.8rem;color:var(--text-dim);font-family:'Space Mono',monospace;}
-.status.live{color:var(--accent);animation:blink 1s infinite;}
-@keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
+.status.live{color:var(--accent);}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:6px;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
+
+.fft-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.fft-label{font-size:.72rem;color:var(--text-dim);font-family:'Space Mono',monospace;}
+.fft-btn{padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-sub);font-family:'Space Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .15s;}
+.fft-btn.active{border-color:var(--accent);color:var(--accent);}
+.smooth-row{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.smooth-label{font-size:.72rem;color:var(--text-dim);white-space:nowrap;font-family:'Space Mono',monospace;}
+input[type=range]{-webkit-appearance:none;height:3px;border-radius:2px;background:var(--border);outline:none;flex:1;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer;}
+.smooth-val{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--accent);min-width:32px;}
 
 /* ピッチ大表示 */
-.pitch-display{display:flex;align-items:baseline;gap:8px;justify-content:center;padding:12px 0 4px;}
-.pitch-hz{font-family:'Space Mono',monospace;font-size:3rem;font-weight:700;color:var(--accent);line-height:1;transition:color .2s;}
-.pitch-unit{font-size:1.2rem;color:var(--text-sub);}
+.pitch-display{display:flex;align-items:baseline;gap:8px;justify-content:center;padding:10px 0 2px;}
+.pitch-hz{font-family:'Space Mono',monospace;font-size:2.8rem;font-weight:700;color:var(--accent);line-height:1;transition:color .2s;}
+.pitch-unit{font-size:1.1rem;color:var(--text-sub);}
 .pitch-note{font-size:.9rem;color:var(--accent4);font-family:'Space Mono',monospace;}
-.pitch-sub{text-align:center;font-size:.8rem;color:var(--text-dim);margin-bottom:4px;}
+.pitch-comment{text-align:center;font-size:.78rem;color:var(--text-dim);margin-top:2px;}
+
+/* メトリクスグリッド */
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:12px;}
+.metric-card{background:#0d0f14;border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
+.metric-label{font-size:.7rem;color:var(--text-dim);font-family:'Space Mono',monospace;letter-spacing:.08em;margin-bottom:6px;}
+.metric-value{font-family:'Space Mono',monospace;font-size:1.4rem;font-weight:700;line-height:1;}
+.metric-sub{font-size:.72rem;color:var(--text-dim);margin-top:4px;}
+.metric-bar-wrap{height:3px;background:var(--border);border-radius:2px;margin-top:8px;}
+.metric-bar{height:100%;border-radius:2px;transition:width .3s;}
+.good{color:var(--accent);}
+.warn{color:var(--accent4);}
+.bad{color:var(--accent2);}
 
 /* Canvas */
 .canvas-wrap{width:100%;border-radius:8px;overflow:hidden;background:#080a0e;}
 canvas{display:block;width:100%;height:auto;}
 
+/* ピッチトレース */
+.trace-wrap{position:relative;}
+
 /* 倍音リスト */
-.harmonic-title{font-size:.75rem;color:var(--text-dim);letter-spacing:.1em;margin:12px 0 8px;font-family:'Space Mono',monospace;}
-.harmonic-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;}
+.harmonic-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:6px;}
 .h-item{background:#0d0f14;border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px;}
-.h-num{font-family:'Space Mono',monospace;font-size:.7rem;min-width:24px;font-weight:700;}
-.h-hz{font-family:'Space Mono',monospace;font-size:.95rem;font-weight:700;}
+.h-num{font-family:'Space Mono',monospace;font-size:.7rem;min-width:28px;font-weight:700;}
+.h-hz{font-family:'Space Mono',monospace;font-size:.92rem;font-weight:700;}
 .h-db{font-size:.7rem;color:var(--text-dim);margin-left:auto;}
 
-/* FFTサイズ選択 */
-.fft-row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
-.fft-label{font-size:.75rem;color:var(--text-dim);}
-.fft-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-sub);font-family:'Space Mono',monospace;font-size:.75rem;cursor:pointer;transition:all .15s;}
-.fft-btn.active{border-color:var(--accent);color:var(--accent);}
-.fft-btn:hover{border-color:var(--accent3);color:var(--accent3);}
+/* 抑揚メーター */
+.intonation-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-top:6px;}
+.intonation-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent3),var(--accent));transition:width .2s;}
 
-/* スムージング */
-.smooth-row{display:flex;align-items:center;gap:8px;margin-top:6px;}
-.smooth-label{font-size:.75rem;color:var(--text-dim);white-space:nowrap;}
-input[type=range]{-webkit-appearance:none;height:4px;border-radius:2px;background:var(--border);outline:none;flex:1;}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;}
-.smooth-val{font-family:'Space Mono',monospace;font-size:.75rem;color:var(--accent);min-width:30px;}
+/* タブ */
+.tab-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.tab-btn{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-sub);font-family:'Space Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .15s;}
+.tab-btn.active{background:var(--accent);color:#0a0c10;border-color:var(--accent);font-weight:700;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>HARMONICS ANALYZER</h1>
-  <p class="sub-title">REALTIME VOICE SPECTRUM</p>
+  <h1>VOICE ANALYZER PRO</h1>
+  <p class="sub-title">REALTIME PROFESSIONAL VOICE ANALYSIS</p>
 
   <!-- コントロール -->
   <div class="card">
@@ -80,7 +103,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <span class="status" id="statusText">マイクボタンを押してください</span>
     </div>
     <div class="fft-row">
-      <span class="fft-label">FFTサイズ:</span>
+      <span class="fft-label">FFT:</span>
       <button class="fft-btn" onclick="setFftSize(2048)" data-size="2048">2048</button>
       <button class="fft-btn active" onclick="setFftSize(4096)" data-size="4096">4096</button>
       <button class="fft-btn" onclick="setFftSize(8192)" data-size="8192">8192</button>
@@ -93,32 +116,102 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     </div>
   </div>
 
-  <!-- ピッチ表示 -->
+  <!-- ピッチ・声量 大表示 -->
   <div class="card">
-    <div class="pitch-display">
-      <span class="pitch-hz" id="pitchHz">—</span>
-      <span class="pitch-unit">Hz</span>
-      <span class="pitch-note" id="pitchNote"></span>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center;">
+      <div>
+        <div class="card-title">PITCH（基音）</div>
+        <div class="pitch-display" style="justify-content:flex-start;">
+          <span class="pitch-hz" id="pitchHz">—</span>
+          <span class="pitch-unit">Hz</span>
+          <span class="pitch-note" id="pitchNote"></span>
+        </div>
+        <div class="pitch-comment" id="pitchComment" style="text-align:left;">—</div>
+      </div>
+      <div>
+        <div class="card-title">VOLUME（声量）</div>
+        <div class="pitch-display" style="justify-content:flex-start;">
+          <span class="pitch-hz" id="volumeDb" style="font-size:2.2rem;">—</span>
+          <span class="pitch-unit">dB</span>
+        </div>
+        <div style="margin-top:6px;">
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div id="volumeBar" style="height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,var(--accent3),var(--accent),var(--accent4));transition:width .1s;"></div>
+          </div>
+          <div class="pitch-comment" id="volumeComment" style="text-align:left;margin-top:4px;">—</div>
+        </div>
+      </div>
     </div>
-    <div class="pitch-sub" id="pitchSub">基音（平均ピッチ）</div>
   </div>
 
-  <!-- 波形 -->
-  <div class="card">
-    <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:8px;font-family:'Space Mono',monospace;">WAVEFORM</div>
-    <div class="canvas-wrap"><canvas id="waveCanvas" height="60"></canvas></div>
+  <!-- メトリクス -->
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">JITTER（ピッチ安定性）</div>
+      <div class="metric-value good" id="metJitter">—</div>
+      <div class="metric-sub">小さいほど安定した声</div>
+      <div class="metric-bar-wrap"><div class="metric-bar" id="barJitter" style="width:0%;background:var(--accent)"></div></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">SHIMMER（音量安定性）</div>
+      <div class="metric-value good" id="metShimmer">—</div>
+      <div class="metric-sub">小さいほど安定した声</div>
+      <div class="metric-bar-wrap"><div class="metric-bar" id="barShimmer" style="width:0%;background:var(--accent3)"></div></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">HNR（調和雑音比）</div>
+      <div class="metric-value good" id="metHNR">—</div>
+      <div class="metric-sub">高いほどクリアな声</div>
+      <div class="metric-bar-wrap"><div class="metric-bar" id="barHNR" style="width:0%;background:var(--accent4)"></div></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">INTONATION（抑揚）</div>
+      <div class="metric-value good" id="metIntonation">—</div>
+      <div class="metric-sub">ピッチ変動幅（半音数）</div>
+      <div class="metric-bar-wrap"><div class="metric-bar" id="barIntonation" style="width:0%;background:var(--accent5)"></div></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">SPEECH RATE（話速）</div>
+      <div class="metric-value good" id="metSpeechRate">—</div>
+      <div class="metric-sub">音節数/秒の推定</div>
+      <div class="metric-bar-wrap"><div class="metric-bar" id="barSpeechRate" style="width:0%;background:var(--accent2)"></div></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">SPECTRAL CENTROID</div>
+      <div class="metric-value good" id="metCentroid">—</div>
+      <div class="metric-sub">声の明るさ・重さ</div>
+      <div class="metric-bar-wrap"><div class="metric-bar" id="barCentroid" style="width:0%;background:var(--accent3)"></div></div>
+    </div>
   </div>
 
-  <!-- スペクトル -->
+  <!-- タブ -->
   <div class="card">
-    <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:8px;font-family:'Space Mono',monospace;">SPECTRUM</div>
-    <div class="canvas-wrap"><canvas id="specCanvas" height="200"></canvas></div>
-  </div>
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('spectrum')">SPECTRUM</button>
+      <button class="tab-btn" onclick="switchTab('pitch')">PITCH TRACE</button>
+      <button class="tab-btn" onclick="switchTab('wave')">WAVEFORM</button>
+      <button class="tab-btn" onclick="switchTab('harmonics')">HARMONICS</button>
+    </div>
 
-  <!-- 倍音リスト -->
-  <div class="card">
-    <div class="harmonic-title">HARMONICS LIST</div>
-    <div class="harmonic-list" id="harmonicList"></div>
+    <!-- スペクトル -->
+    <div class="tab-content active" id="tab-spectrum">
+      <div class="canvas-wrap"><canvas id="specCanvas" height="220"></canvas></div>
+    </div>
+
+    <!-- ピッチトレース -->
+    <div class="tab-content" id="tab-pitch">
+      <div class="canvas-wrap"><canvas id="pitchCanvas" height="180"></canvas></div>
+    </div>
+
+    <!-- 波形 -->
+    <div class="tab-content" id="tab-wave">
+      <div class="canvas-wrap"><canvas id="waveCanvas" height="100"></canvas></div>
+    </div>
+
+    <!-- 倍音リスト -->
+    <div class="tab-content" id="tab-harmonics">
+      <div class="harmonic-list" id="harmonicList"></div>
+    </div>
   </div>
 </div>
 
@@ -126,24 +219,41 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 // ============================================================
 // 状態
 // ============================================================
-let audioCtx=null, analyser=null, source=null, stream=null;
-let animId=null, running=false;
+let audioCtx=null,analyser=null,source=null,stream=null;
+let animId=null,running=false;
 let fftSize=4096;
-let pitchHistory=[];
-const MAX_PITCH_HIST=40;
+let currentTab='spectrum';
 
-// ピッチ→音名
+// ピッチ履歴
+const MAX_HIST=80;
+const pitchHistory=[];
+const rmsHistory=[];
+const pitchTraceHistory=[];// 時系列用
+const MAX_TRACE=200;
+
+// 話速用
+let voicedFrames=0,unvoicedFrames=0,syllableCount=0;
+let prevVoiced=false,lastSyllableTime=0;
+let speechRateHistory=[];
+
+// ジッター・シマー計算用
+const jitterBuf=[];// ピリオド（秒）
+const shimmerBuf=[];// RMSピーク
+const MAX_JS_BUF=50;
+
+// 音名
 const NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 function freqToNote(hz){
   if(hz<=0)return'';
   const n=Math.round(12*Math.log2(hz/440)+69);
-  const name=NOTE_NAMES[((n%12)+12)%12];
-  const oct=Math.floor(n/12)-1;
-  return name+oct;
+  return NOTE_NAMES[((n%12)+12)%12]+Math.floor(n/12-1);
+}
+function freqToSemitone(hz){
+  return hz>0?12*Math.log2(hz/440)+69:0;
 }
 
 // ============================================================
-// マイク制御
+// マイク
 // ============================================================
 async function toggleMic(){
   if(running){stopMic();return;}
@@ -158,14 +268,11 @@ async function toggleMic(){
     running=true;
     document.getElementById('startBtn').textContent='⏹ 停止';
     document.getElementById('startBtn').classList.add('active');
-    document.getElementById('statusText').textContent='● LIVE';
+    document.getElementById('statusText').innerHTML='<span class="live-dot"></span>LIVE';
     document.getElementById('statusText').classList.add('live');
     draw();
-  }catch(e){
-    alert('マイクのアクセスが許可されていません: '+e.message);
-  }
+  }catch(e){alert('マイクのアクセスが許可されていません: '+e.message);}
 }
-
 function stopMic(){
   running=false;
   if(animId)cancelAnimationFrame(animId);
@@ -177,105 +284,283 @@ function stopMic(){
   document.getElementById('statusText').textContent='停止中';
   document.getElementById('statusText').classList.remove('live');
 }
-
 function setFftSize(size){
   fftSize=size;
-  document.querySelectorAll('.fft-btn').forEach(b=>{
-    b.classList.toggle('active',parseInt(b.dataset.size)===size);
-  });
-  if(analyser){
-    analyser.fftSize=size;
-  }
+  document.querySelectorAll('.fft-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.size)===size));
+  if(analyser)analyser.fftSize=size;
 }
-
 function updateSmoothing(){
   const v=parseFloat(document.getElementById('smoothing').value);
   document.getElementById('smoothVal').textContent=v.toFixed(2);
   if(analyser)analyser.smoothingTimeConstant=v;
 }
+function switchTab(name){
+  currentTab=name;
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    const names=['spectrum','pitch','wave','harmonics'];
+    b.classList.toggle('active',names[i]===name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
 
 // ============================================================
-// ピッチ検出（自己相関法）
+// ピッチ検出（自己相関＋放物線補間）
 // ============================================================
-function detectPitch(timeDomainData, sampleRate){
-  const buf=timeDomainData;
+function detectPitch(buf,sampleRate){
   const SIZE=buf.length;
-  // RMSチェック
   let rms=0;for(let i=0;i<SIZE;i++)rms+=buf[i]*buf[i];
   rms=Math.sqrt(rms/SIZE);
-  if(rms<0.03)return null;
-
-  const minLag=Math.floor(sampleRate/500);
+  if(rms<0.03)return{pitch:null,rms};
+  const minLag=Math.floor(sampleRate/400);
   const maxLag=Math.floor(sampleRate/80);
-  let bestLag=-1,bestVal=-Infinity;
-  for(let lag=minLag;lag<=maxLag;lag++){
-    let s=0;
-    for(let i=0;i<SIZE-maxLag;i++)s+=buf[i]*buf[i+lag];
-    if(s>bestVal){bestVal=s;bestLag=lag;}
+  let bestLag=minLag,bestVal=-Infinity;
+  const acCache=new Float32Array(maxLag+2);
+  for(let lag=minLag;lag<=maxLag+1;lag++){
+    let s=0;for(let i=0;i<SIZE-maxLag;i++)s+=buf[i]*buf[i+lag];
+    acCache[lag]=s;
+    if(lag<=maxLag&&s>bestVal){bestVal=s;bestLag=lag;}
   }
-  if(bestLag<0)return null;
+  if(bestVal<=0)return{pitch:null,rms};
+  // 正規化チェック
+  const acNorm=acCache[0]>0?bestVal/acCache[0]:0;
+  if(acNorm<0.1)return{pitch:null,rms};
   // 放物線補間
-  const prev=bestLag>minLag?acAt(buf,SIZE,maxLag,bestLag-1):bestVal;
-  const next=bestLag<maxLag?acAt(buf,SIZE,maxLag,bestLag+1):bestVal;
+  const prev=acCache[bestLag-1]||bestVal;
+  const next=acCache[bestLag+1]||bestVal;
   const denom=prev-2*bestVal+next;
   const fine=denom!==0?0.5*(prev-next)/(-denom):0;
-  return sampleRate/(bestLag+fine);
-}
-function acAt(buf,SIZE,maxLag,lag){
-  let s=0;for(let i=0;i<SIZE-maxLag;i++)s+=buf[i]*buf[i+lag];return s;
+  const pitch=sampleRate/(bestLag+fine);
+  // ピリオド（ジッター計算用）
+  const period=(bestLag+fine)/sampleRate;
+  return{pitch,rms,period,acNorm};
 }
 
 // ============================================================
-// 描画ループ
+// ジッター・シマー・HNR
+// ============================================================
+function calcJitter(){
+  if(jitterBuf.length<3)return null;
+  const mean=jitterBuf.reduce((a,b)=>a+b,0)/jitterBuf.length;
+  let sum=0;
+  for(let i=1;i<jitterBuf.length;i++) sum+=Math.abs(jitterBuf[i]-jitterBuf[i-1]);
+  return(sum/(jitterBuf.length-1))/mean*100;// %
+}
+function calcShimmer(){
+  if(shimmerBuf.length<3)return null;
+  let sum=0;
+  for(let i=1;i<shimmerBuf.length;i++) sum+=Math.abs(20*Math.log10(shimmerBuf[i]/shimmerBuf[i-1]));
+  return sum/(shimmerBuf.length-1);// dB
+}
+function calcHNR(buf,period,sampleRate){
+  if(!period)return null;
+  const lag=Math.round(period*sampleRate);
+  if(lag<=0||lag>=buf.length)return null;
+  let signalPower=0,noisePower=0;
+  const len=buf.length-lag;
+  for(let i=0;i<len;i++){
+    const d=buf[i]-buf[i+lag];
+    signalPower+=buf[i]*buf[i];
+    noisePower+=d*d;
+  }
+  if(noisePower<=0)return 40;
+  return 10*Math.log10(signalPower/noisePower);
+}
+
+// ============================================================
+// スペクトル重心
+// ============================================================
+function calcSpectralCentroid(freqData,binHz,bufLen){
+  let num=0,den=0;
+  const maxBin=Math.min(Math.round(8000/binHz),bufLen-1);
+  for(let b=1;b<=maxBin;b++){
+    const amp=Math.pow(10,freqData[b]/20);
+    num+=b*binHz*amp;den+=amp;
+  }
+  return den>0?num/den:0;
+}
+
+// ============================================================
+// 話速（音節推定）
+// ============================================================
+function updateSpeechRate(isVoiced,now){
+  if(isVoiced&&!prevVoiced){
+    // 有声区間開始 = 音節カウント
+    if(now-lastSyllableTime>80){// 80ms以上間隔
+      syllableCount++;
+      lastSyllableTime=now;
+    }
+  }
+  prevVoiced=isVoiced;
+  // 直近3秒の話速を計算
+  speechRateHistory.push({syllableCount,time:now});
+  if(speechRateHistory.length>1){
+    const old=speechRateHistory[0];
+    const dt=(now-old.time)/1000;
+    if(dt>2){
+      const rate=(syllableCount-old.syllableCount)/dt;
+      speechRateHistory=speechRateHistory.filter(e=>now-e.time<3000);
+      return Math.max(0,rate);
+    }
+  }
+  return null;
+}
+
+// ============================================================
+// メイン描画ループ
 // ============================================================
 function draw(){
   if(!running)return;
   animId=requestAnimationFrame(draw);
-
   const bufLen=analyser.frequencyBinCount;
   const freqData=new Float32Array(bufLen);
   const timeData=new Float32Array(analyser.fftSize);
   analyser.getFloatFrequencyData(freqData);
   analyser.getFloatTimeDomainData(timeData);
-
   const sampleRate=audioCtx.sampleRate;
   const binHz=sampleRate/analyser.fftSize;
+  const now=performance.now();
 
   // ピッチ検出
-  const pitch=detectPitch(timeData,sampleRate);
-  if(pitch&&pitch>80&&pitch<500){
-    pitchHistory.push(pitch);
-    if(pitchHistory.length>MAX_PITCH_HIST)pitchHistory.shift();
-  } else if(!pitch){
-    // 無音時は履歴を徐々に消す
+  const det=detectPitch(timeData,sampleRate);
+  const isVoiced=det.pitch!==null;
+
+  if(isVoiced){
+    pitchHistory.push(det.pitch);
+    if(pitchHistory.length>MAX_HIST)pitchHistory.shift();
+    rmsHistory.push(det.rms);
+    if(rmsHistory.length>MAX_HIST)rmsHistory.shift();
+    // ジッター用バッファ
+    if(det.period){jitterBuf.push(det.period);if(jitterBuf.length>MAX_JS_BUF)jitterBuf.shift();}
+    shimmerBuf.push(det.rms);if(shimmerBuf.length>MAX_JS_BUF)shimmerBuf.shift();
+    // ピッチトレース
+    pitchTraceHistory.push({pitch:det.pitch,voiced:true,time:now});
+  } else {
     if(pitchHistory.length>0)pitchHistory.shift();
+    pitchTraceHistory.push({pitch:null,voiced:false,time:now});
   }
+  if(pitchTraceHistory.length>MAX_TRACE)pitchTraceHistory.shift();
+
+  // 中央値ピッチ
   const sorted=[...pitchHistory].sort((a,b)=>a-b);
   const medPitch=sorted.length>3?sorted[Math.floor(sorted.length/2)]:null;
 
-  // ピッチ表示
-  const pitchEl=document.getElementById('pitchHz');
-  if(medPitch){
-    pitchEl.textContent=medPitch.toFixed(1);
-    const note=freqToNote(medPitch);
-    document.getElementById('pitchNote').textContent=note?'('+note+')':'';
-    // 色分け
-    if(medPitch<110)pitchEl.style.color='#4ff0b0';
-    else if(medPitch<165)pitchEl.style.color='#7eb8ff';
-    else if(medPitch<260)pitchEl.style.color='#ffd166';
-    else pitchEl.style.color='#ff6b6b';
-  } else {
-    pitchEl.textContent='—';
-    pitchEl.style.color='var(--accent)';
-    document.getElementById('pitchNote').textContent='';
+  // 話速
+  const speechRate=updateSpeechRate(isVoiced,now);
+
+  // 声量
+  const rmsDb=det.rms>0?20*Math.log10(det.rms):-100;
+
+  // スペクトル重心
+  const centroid=calcSpectralCentroid(freqData,binHz,bufLen);
+
+  // ジッター・シマー・HNR
+  const jitter=calcJitter();
+  const shimmer=calcShimmer();
+  const hnr=isVoiced&&det.period?calcHNR(timeData,det.period,sampleRate):null;
+
+  // 抑揚（ピッチ変動幅）
+  let intonation=0;
+  if(pitchHistory.length>5){
+    const semitones=pitchHistory.map(p=>freqToSemitone(p));
+    intonation=Math.max(...semitones)-Math.min(...semitones);
   }
 
-  // 波形描画
-  drawWave(timeData);
-  // スペクトル描画
-  drawSpectrum(freqData, binHz, bufLen, medPitch);
-  // 倍音リスト
-  if(medPitch)updateHarmonicList(freqData, binHz, bufLen, medPitch);
+  // UI更新
+  updatePitchDisplay(medPitch);
+  updateVolumeDisplay(rmsDb);
+  updateMetrics({jitter,shimmer,hnr,intonation,speechRate,centroid});
+
+  // グラフ描画
+  if(currentTab==='spectrum') drawSpectrum(freqData,binHz,bufLen,medPitch);
+  else if(currentTab==='pitch') drawPitchTrace();
+  else if(currentTab==='wave') drawWave(timeData);
+  else if(currentTab==='harmonics'&&medPitch) updateHarmonicList(freqData,binHz,bufLen,medPitch);
+}
+
+// ============================================================
+// UI更新
+// ============================================================
+function updatePitchDisplay(pitch){
+  const el=document.getElementById('pitchHz');
+  const commentEl=document.getElementById('pitchComment');
+  if(pitch){
+    el.textContent=pitch.toFixed(1);
+    document.getElementById('pitchNote').textContent='('+freqToNote(pitch)+')';
+    if(pitch<110){el.style.color='#4ff0b0';commentEl.textContent='男性・極めて低い域';}
+    else if(pitch<165){el.style.color='#7eb8ff';commentEl.textContent='男性・低め〜平均';}
+    else if(pitch<260){el.style.color='#ffd166';commentEl.textContent='女性・低め〜平均';}
+    else{el.style.color='#ff6b6b';commentEl.textContent='女性・高め';}
+  } else {
+    el.textContent='—';el.style.color='var(--accent)';
+    document.getElementById('pitchNote').textContent='';
+    commentEl.textContent='—';
+  }
+}
+
+function updateVolumeDisplay(db){
+  const el=document.getElementById('volumeDb');
+  const bar=document.getElementById('volumeBar');
+  const comment=document.getElementById('volumeComment');
+  if(db>-60){
+    el.textContent=db.toFixed(1);
+    const pct=Math.max(0,Math.min(100,(db+60)/50*100));
+    bar.style.width=pct+'%';
+    if(db>-20){el.style.color='var(--accent2)';comment.textContent='大きい';}
+    else if(db>-35){el.style.color='var(--accent)';comment.textContent='適切';}
+    else if(db>-50){el.style.color='var(--accent4)';comment.textContent='やや小さい';}
+    else{el.style.color='var(--text-dim)';comment.textContent='小さい';}
+  } else {
+    el.textContent='—';bar.style.width='0%';comment.textContent='無音';
+  }
+}
+
+function colorClass(val,good,warn){
+  return val<=good?'good':val<=warn?'warn':'bad';
+}
+function barColor(cls){
+  return cls==='good'?'var(--accent)':cls==='warn'?'var(--accent4)':'var(--accent2)';
+}
+
+function updateMetrics({jitter,shimmer,hnr,intonation,speechRate,centroid}){
+  // ジッター（%）: <1% good, <2% warn, else bad
+  if(jitter!==null){
+    const cls=colorClass(jitter,1,2);
+    setMetric('Jitter',jitter.toFixed(2)+'%',cls,Math.max(0,100-jitter*20));
+  }
+  // シマー（dB）: <0.5 good, <1.0 warn
+  if(shimmer!==null){
+    const cls=colorClass(shimmer,0.5,1.0);
+    setMetric('Shimmer',shimmer.toFixed(2)+'dB',cls,Math.max(0,100-shimmer*50));
+  }
+  // HNR（dB）: >20 good, >10 warn
+  if(hnr!==null){
+    const cls=hnr>20?'good':hnr>10?'warn':'bad';
+    setMetric('HNR',hnr.toFixed(1)+'dB',cls,Math.min(100,hnr*2.5));
+  }
+  // 抑揚（半音）: 3〜8が理想
+  if(intonation>0){
+    const cls=intonation>=2&&intonation<=10?'good':intonation>=1?'warn':'bad';
+    setMetric('Intonation',intonation.toFixed(1)+'st',cls,Math.min(100,intonation*8));
+  }
+  // 話速（音節/秒）: 4〜7が理想
+  if(speechRate!==null&&speechRate>0){
+    const cls=speechRate>=3&&speechRate<=8?'good':speechRate>=2?'warn':'bad';
+    setMetric('SpeechRate',speechRate.toFixed(1)+'/s',cls,Math.min(100,speechRate*10));
+  }
+  // スペクトル重心（Hz）
+  if(centroid>0){
+    const cls=centroid<2000?'good':centroid<3500?'warn':'bad';
+    const lbl=centroid>=1000?(centroid/1000).toFixed(2)+'k':Math.round(centroid)+'';
+    setMetric('Centroid',lbl+'Hz',cls,Math.min(100,Math.max(0,(4000-centroid)/40)));
+  }
+}
+
+function setMetric(name,val,cls,barPct){
+  const el=document.getElementById('met'+name);
+  const bar=document.getElementById('bar'+name);
+  if(el){el.textContent=val;el.className='metric-value '+cls;}
+  if(bar){bar.style.width=barPct+'%';bar.style.background=barColor(cls);}
 }
 
 // ============================================================
@@ -284,125 +569,155 @@ function draw(){
 function drawWave(timeData){
   const canvas=document.getElementById('waveCanvas');
   const dpr=devicePixelRatio||1;
-  const W=canvas.offsetWidth*dpr,H=60*dpr;
+  const W=canvas.offsetWidth*dpr,H=100*dpr;
   if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle='rgba(79,240,176,0.7)';ctx.lineWidth=1.5*dpr;
+  // 中心線
+  ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();
+  // 波形
+  ctx.strokeStyle='rgba(79,240,176,0.8)';ctx.lineWidth=1.5*dpr;
   ctx.beginPath();
-  const step=W/timeData.length;
   for(let i=0;i<timeData.length;i++){
-    const x=i*step;
-    const y=H/2+(timeData[i]*H*0.45);
+    const x=(i/timeData.length)*W;
+    const y=H/2+timeData[i]*H*0.45;
     i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
   }
   ctx.stroke();
 }
 
 // ============================================================
+// ピッチトレース
+// ============================================================
+function drawPitchTrace(){
+  const canvas=document.getElementById('pitchCanvas');
+  const dpr=devicePixelRatio||1;
+  const W=canvas.offsetWidth*dpr,H=180*dpr;
+  if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
+
+  const pad={l:38*dpr,r:10*dpr,t:10*dpr,b:20*dpr};
+  const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+
+  const minHz=60,maxHz=400;
+  const toY=hz=>pad.t+ph-(hz-minHz)/(maxHz-minHz)*ph;
+
+  // グリッド
+  [80,100,120,150,200,250,300].forEach(hz=>{
+    const y=toY(hz);
+    if(y<pad.t||y>pad.t+ph)return;
+    ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();
+    ctx.fillStyle='#3a4050';ctx.font=`${7*dpr}px monospace`;ctx.textAlign='right';
+    ctx.fillText(hz,pad.l-4,y+3);
+  });
+
+  // トレース
+  const pts=pitchTraceHistory;
+  if(pts.length<2)return;
+  ctx.strokeStyle='var(--accent)';ctx.lineWidth=2*dpr;
+  ctx.beginPath();
+  let first=true;
+  pts.forEach((p,i)=>{
+    const x=pad.l+(i/MAX_TRACE)*pw;
+    if(!p.voiced){first=true;return;}
+    const y=toY(Math.max(minHz,Math.min(maxHz,p.pitch)));
+    if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // 現在値マーカー
+  const last=pts.filter(p=>p.voiced).slice(-1)[0];
+  if(last){
+    const x=pad.l+((pts.lastIndexOf(last))/MAX_TRACE)*pw;
+    const y=toY(Math.max(minHz,Math.min(maxHz,last.pitch)));
+    ctx.beginPath();ctx.arc(x,y,4*dpr,0,Math.PI*2);
+    ctx.fillStyle='var(--accent)';ctx.fill();
+  }
+}
+
+// ============================================================
 // スペクトル
 // ============================================================
-function drawSpectrum(freqData, binHz, bufLen, pitch){
+const COLORS=['#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff'];
+function drawSpectrum(freqData,binHz,bufLen,pitch){
   const canvas=document.getElementById('specCanvas');
   const dpr=devicePixelRatio||1;
-  const W=canvas.offsetWidth*dpr,H=200*dpr;
+  const W=canvas.offsetWidth*dpr,H=220*dpr;
   if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
 
   const pad={l:36*dpr,r:10*dpr,t:10*dpr,b:22*dpr};
   const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
-
   const minFreq=20,maxFreq=pitch?Math.min(pitch*14,8000):4000;
   const toX=f=>pad.l+((f-minFreq)/(maxFreq-minFreq))*pw;
   const dBmin=-100,dBmax=-10;
   const toY=db=>pad.t+ph-(Math.max(dBmin,Math.min(dBmax,db))-dBmin)/(dBmax-dBmin)*ph;
 
-  // グリッド・Y軸dBラベル
+  // グリッド
   [-80,-60,-40,-20].forEach(db=>{
     const y=toY(db);
     ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();
-    ctx.fillStyle='#3a4050';ctx.font=`${8*dpr}px monospace`;ctx.textAlign='right';
-    ctx.fillText(db+'dB',pad.l-4,y+3);
+    ctx.fillStyle='#3a4050';ctx.font=`${7*dpr}px monospace`;ctx.textAlign='right';
+    ctx.fillText(db+'dB',pad.l-3,y+3);
   });
 
-  // X軸Hzグリッド
-  const ticks=[];
+  // X軸
   let step=500;
   if(maxFreq<2000)step=200;
   if(maxFreq<1000)step=100;
-  for(let f=step;f<maxFreq;f+=step)ticks.push(f);
-  ticks.forEach(f=>{
+  for(let f=step;f<maxFreq;f+=step){
     const x=toX(f);
     ctx.strokeStyle='#1a1e28';ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ph);ctx.stroke();
-    ctx.fillStyle='#3a4050';ctx.font=`${8*dpr}px monospace`;ctx.textAlign='center';
-    const lbl=f>=1000?(f/1000).toFixed(1)+'k':f+'';
-    ctx.fillText(lbl,x,pad.t+ph+14*dpr);
-  });
+    ctx.fillStyle='#3a4050';ctx.font=`${7*dpr}px monospace`;ctx.textAlign='center';
+    ctx.fillText(f>=1000?(f/1000).toFixed(1)+'k':f+'',x,pad.t+ph+14*dpr);
+  }
 
-  // スペクトル曲線（グラデーション塗り）
-  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ph);
-  grad.addColorStop(0,'rgba(79,240,176,0.6)');
-  grad.addColorStop(1,'rgba(79,240,176,0.02)');
-
-  ctx.beginPath();
-  let first=true;
+  // スペクトル
   const minBin=Math.max(1,Math.floor(minFreq/binHz));
   const maxBin=Math.min(Math.ceil(maxFreq/binHz),bufLen-1);
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ph);
+  grad.addColorStop(0,'rgba(79,240,176,0.7)');
+  grad.addColorStop(1,'rgba(79,240,176,0.02)');
+  ctx.beginPath();
+  let first=true;
   for(let b=minBin;b<=maxBin;b++){
-    const f=b*binHz;
-    const x=toX(f);
-    const y=toY(freqData[b]);
-    first?ctx.moveTo(x,y):ctx.lineTo(x,y);
-    first=false;
-  }
-  // 塗りつぶし
-  ctx.lineTo(toX(maxBin*binHz),pad.t+ph);
-  ctx.lineTo(toX(minFreq),pad.t+ph);
-  ctx.closePath();
-  ctx.fillStyle=grad;ctx.fill();
-
-  // 輪郭線
-  ctx.beginPath();first=true;
-  for(let b=minBin;b<=maxBin;b++){
-    const f=b*binHz;
-    const x=toX(f);const y=toY(freqData[b]);
+    const x=toX(b*binHz),y=toY(freqData[b]);
     first?ctx.moveTo(x,y):ctx.lineTo(x,y);first=false;
   }
-  ctx.strokeStyle='rgba(79,240,176,0.8)';ctx.lineWidth=1.5*dpr;ctx.stroke();
+  ctx.lineTo(toX(maxBin*binHz),pad.t+ph);ctx.lineTo(toX(minFreq),pad.t+ph);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();first=true;
+  for(let b=minBin;b<=maxBin;b++){
+    const x=toX(b*binHz),y=toY(freqData[b]);
+    first?ctx.moveTo(x,y):ctx.lineTo(x,y);first=false;
+  }
+  ctx.strokeStyle='rgba(79,240,176,0.9)';ctx.lineWidth=1.5*dpr;ctx.stroke();
 
   // 倍音マーカー
   if(!pitch)return;
-  const COLORS=['#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff'];
   for(let h=0;h<12;h++){
     const centerHz=pitch*(h+1);
     if(centerHz>maxFreq||centerHz<minFreq)continue;
-    // ±8%でピーク探索
     const loB=Math.max(minBin,Math.round(centerHz*0.92/binHz));
     const hiB=Math.min(Math.round(centerHz*1.08/binHz),bufLen-1);
     let peakB=loB,peakV=freqData[loB];
     for(let b=loB;b<=hiB;b++){if(freqData[b]>peakV){peakV=freqData[b];peakB=b;}}
     const peakHz=peakB*binHz;
-    const x=toX(peakHz);
-    const y=toY(peakV);
+    const x=toX(peakHz),y=toY(peakV);
     if(y<pad.t||y>pad.t+ph)continue;
-
-    // 縦点線
     ctx.strokeStyle=COLORS[h]+'55';ctx.lineWidth=1*dpr;ctx.setLineDash([3*dpr,3*dpr]);
-    ctx.beginPath();ctx.moveTo(x,y+6*dpr);ctx.lineTo(x,pad.t+ph);ctx.stroke();
-    ctx.setLineDash([]);
-
-    // マーカー丸
+    ctx.beginPath();ctx.moveTo(x,y+6*dpr);ctx.lineTo(x,pad.t+ph);ctx.stroke();ctx.setLineDash([]);
     ctx.beginPath();ctx.arc(x,y,5*dpr,0,Math.PI*2);ctx.fillStyle=COLORS[h];ctx.fill();
-
-    // 番号
-    ctx.fillStyle=COLORS[h];ctx.font=`bold ${9*dpr}px monospace`;ctx.textAlign='center';
+    ctx.fillStyle=COLORS[h];ctx.font=`bold ${8*dpr}px monospace`;ctx.textAlign='center';
     ctx.fillText(h+1,x,y-16*dpr);
-    // Hz
     const hzLbl=peakHz>=1000?(peakHz/1000).toFixed(2)+'k':Math.round(peakHz)+'';
-    ctx.fillStyle=COLORS[h]+'cc';ctx.font=`${8*dpr}px monospace`;
+    ctx.fillStyle=COLORS[h]+'cc';ctx.font=`${7*dpr}px monospace`;
     ctx.fillText(hzLbl+'Hz',x,y-6*dpr);
   }
 }
@@ -410,8 +725,7 @@ function drawSpectrum(freqData, binHz, bufLen, pitch){
 // ============================================================
 // 倍音リスト
 // ============================================================
-const H_COLORS=['#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff'];
-function updateHarmonicList(freqData, binHz, bufLen, pitch){
+function updateHarmonicList(freqData,binHz,bufLen,pitch){
   const list=document.getElementById('harmonicList');
   let html='';
   for(let h=0;h<12;h++){
@@ -423,12 +737,10 @@ function updateHarmonicList(freqData, binHz, bufLen, pitch){
     for(let b=loB;b<=hiB;b++){if(freqData[b]>peakV){peakV=freqData[b];peakB=b;}}
     const peakHz=peakB*binHz;
     const hzStr=peakHz>=1000?(peakHz/1000).toFixed(3)+'kHz':peakHz.toFixed(1)+'Hz';
-    const dbStr=peakV.toFixed(1)+'dB';
-    const label=h===0?'基音':'×'+(h+1);
     html+=`<div class="h-item">
-      <span class="h-num" style="color:${H_COLORS[h]}">${label}</span>
-      <span class="h-hz" style="color:${H_COLORS[h]}">${hzStr}</span>
-      <span class="h-db">${dbStr}</span>
+      <span class="h-num" style="color:${COLORS[h]}">${h===0?'基音':'×'+(h+1)}</span>
+      <span class="h-hz" style="color:${COLORS[h]}">${hzStr}</span>
+      <span class="h-db">${peakV.toFixed(1)}dB</span>
     </div>`;
   }
   list.innerHTML=html;
