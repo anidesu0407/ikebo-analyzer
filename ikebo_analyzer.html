@@ -376,8 +376,8 @@ function analyze(){
   const raw=audioBuffer.getChannelData(0);
 
   // --- 1. ピッチ（基音）検出 ---
-  const frameSize=2048,hopSize=512;
-  const minHz=60,maxHz=500;
+  const frameSize=4096,hopSize=512; // 低域精度向上のためフレームサイズ拡大
+  const minHz=20,maxHz=500;
   const minLag=Math.floor(sampleRate/maxHz),maxLag=Math.floor(sampleRate/minHz);
   const pitchValues=[];
   for(let offset=0;offset+frameSize<raw.length;offset+=hopSize){
@@ -486,8 +486,23 @@ function analyze(){
     vDesc='声の倍音が少なめです。録音環境の見直しと発声練習を試してみましょう。';
   }
 
+  // --- 副倍音検出（基音の1/2, 1/3のスペクトルエネルギーを確認）---
+  const subHarmonics=[];
+  for(let d=2;d<=4;d++){
+    const subHz=meanPitch/d;
+    if(subHz<20)break;
+    const loHz=subHz*0.85,hiHz=subHz*1.15;
+    const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
+    let energy=0;
+    for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
+    const amp=Math.sqrt(energy);
+    // 基音エネルギーの5%以上あれば副倍音とみなす
+    const ratio=amp/(harmonicEnergies[0]||1);
+    subHarmonics.push({hz:subHz,ratio,detected:ratio>0.05,divisor:d});
+  }
+
   // --- 結果を保存 ---
-  lastResult={totalScore,pitchScore,richScore,formantScore,flickerScore,flickerSlope,meanPitch,harmonicRatios,sfRatio,harmonicRichness,vClass,vTitle,vIcon,frames:pitchValues.length,spectrum,half,binHz,sampleRate};
+  lastResult={totalScore,pitchScore,richScore,formantScore,flickerScore,flickerSlope,meanPitch,harmonicRatios,sfRatio,harmonicRichness,vClass,vTitle,vIcon,frames:pitchValues.length,spectrum,half,binHz,sampleRate,subHarmonics};
 
   // --- 8. UI更新 ---
   displayResults(lastResult);
@@ -656,6 +671,35 @@ function drawHarmonicCanvas(r){
     const hzLabel=peakFreq>=1000?(peakFreq/1000).toFixed(1)+'k':Math.round(peakFreq)+'';
     ctx.fillStyle=HARMONIC_COLORS[h]+'cc';ctx.font=`${8*devicePixelRatio}px monospace`;
     ctx.fillText(hzLabel+'Hz',x,y-6*devicePixelRatio);
+  }
+
+  // 副倍音マーカー（検出されたもののみ・ダイヤ形・橙色）
+  if(r.subHarmonics){
+    r.subHarmonics.forEach(sh=>{
+      if(!sh.detected||sh.hz<minFreqShow||sh.hz>maxFreqShow)return;
+      const loHz=sh.hz*0.85,hiHz=sh.hz*1.15;
+      const loBin=Math.max(1,Math.round(loHz/r.binHz));
+      const hiBin=Math.min(Math.round(hiHz/r.binHz),r.half-1);
+      let peakBin=loBin,peakAmp=0;
+      for(let b=loBin;b<=hiBin;b++){if(r.spectrum[b]>peakAmp){peakAmp=r.spectrum[b];peakBin=b;}}
+      const peakFreq=peakBin*r.binHz;
+      const x=toX(peakFreq);
+      const y=pad.t+ph-(peakAmp/specMax)*ph*0.95;
+      const subColor='#ffa040';
+      // 縦線（点線）
+      ctx.strokeStyle=subColor+'88';ctx.lineWidth=1.5*devicePixelRatio;ctx.setLineDash([2*devicePixelRatio,4*devicePixelRatio]);
+      ctx.beginPath();ctx.moveTo(x,pad.t+ph);ctx.lineTo(x,y+8*devicePixelRatio);ctx.stroke();ctx.setLineDash([]);
+      // ダイヤ形マーカー
+      const ds=5*devicePixelRatio;
+      ctx.beginPath();ctx.moveTo(x,y-ds);ctx.lineTo(x+ds,y);ctx.lineTo(x,y+ds);ctx.lineTo(x-ds,y);ctx.closePath();
+      ctx.fillStyle=subColor;ctx.fill();
+      // ラベル
+      ctx.fillStyle=subColor;ctx.font=`bold ${8*devicePixelRatio}px monospace`;ctx.textAlign='center';
+      ctx.fillText('÷'+sh.divisor,x,y-14*devicePixelRatio);
+      const hzLabel=Math.round(peakFreq)+'Hz';
+      ctx.fillStyle=subColor+'cc';ctx.font=`${7.5*devicePixelRatio}px monospace`;
+      ctx.fillText(hzLabel,x,y-5*devicePixelRatio);
+    });
   }
 
   // 軸ラベル
