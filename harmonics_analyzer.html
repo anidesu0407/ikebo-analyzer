@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Harmonics Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0c10;--panel:#111318;--border:#1e2330;
+  --accent:#4ff0b0;--accent2:#ff6b6b;--accent3:#7eb8ff;--accent4:#ffd166;
+  --text-main:#e8eaf0;--text-sub:#9aa0b0;--text-dim:#4a5060;
+}
+body{background:var(--bg);color:var(--text-main);font-family:'Zen Kaku Gothic New',sans-serif;min-height:100vh;
+  background-image:radial-gradient(ellipse at 20% 50%,rgba(79,240,176,.04) 0%,transparent 60%),
+                   radial-gradient(ellipse at 80% 20%,rgba(126,184,255,.04) 0%,transparent 60%);}
+h1{font-family:'Space Mono',monospace;font-size:1rem;letter-spacing:.2em;color:var(--accent);text-align:center;padding:20px 0 4px;}
+.sub-title{text-align:center;font-size:.75rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:16px;}
+
+.container{max-width:800px;margin:0 auto;padding:0 16px 40px;}
+
+/* カード */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;}
+
+/* コントロール */
+.ctrl-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.btn{padding:8px 20px;border-radius:8px;border:none;cursor:pointer;font-family:'Space Mono',monospace;font-size:.85rem;transition:all .15s;}
+.btn-start{background:var(--accent);color:#0a0c10;font-weight:700;}
+.btn-start:hover{filter:brightness(1.1);}
+.btn-start.active{background:var(--accent2);color:#fff;}
+.btn-start:disabled{opacity:.4;cursor:not-allowed;}
+.status{font-size:.8rem;color:var(--text-dim);font-family:'Space Mono',monospace;}
+.status.live{color:var(--accent);animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ピッチ大表示 */
+.pitch-display{display:flex;align-items:baseline;gap:8px;justify-content:center;padding:12px 0 4px;}
+.pitch-hz{font-family:'Space Mono',monospace;font-size:3rem;font-weight:700;color:var(--accent);line-height:1;transition:color .2s;}
+.pitch-unit{font-size:1.2rem;color:var(--text-sub);}
+.pitch-note{font-size:.9rem;color:var(--accent4);font-family:'Space Mono',monospace;}
+.pitch-sub{text-align:center;font-size:.8rem;color:var(--text-dim);margin-bottom:4px;}
+
+/* Canvas */
+.canvas-wrap{width:100%;border-radius:8px;overflow:hidden;background:#080a0e;}
+canvas{display:block;width:100%;height:auto;}
+
+/* 倍音リスト */
+.harmonic-title{font-size:.75rem;color:var(--text-dim);letter-spacing:.1em;margin:12px 0 8px;font-family:'Space Mono',monospace;}
+.harmonic-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;}
+.h-item{background:#0d0f14;border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px;}
+.h-num{font-family:'Space Mono',monospace;font-size:.7rem;min-width:24px;font-weight:700;}
+.h-hz{font-family:'Space Mono',monospace;font-size:.95rem;font-weight:700;}
+.h-db{font-size:.7rem;color:var(--text-dim);margin-left:auto;}
+
+/* FFTサイズ選択 */
+.fft-row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.fft-label{font-size:.75rem;color:var(--text-dim);}
+.fft-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-sub);font-family:'Space Mono',monospace;font-size:.75rem;cursor:pointer;transition:all .15s;}
+.fft-btn.active{border-color:var(--accent);color:var(--accent);}
+.fft-btn:hover{border-color:var(--accent3);color:var(--accent3);}
+
+/* スムージング */
+.smooth-row{display:flex;align-items:center;gap:8px;margin-top:6px;}
+.smooth-label{font-size:.75rem;color:var(--text-dim);white-space:nowrap;}
+input[type=range]{-webkit-appearance:none;height:4px;border-radius:2px;background:var(--border);outline:none;flex:1;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;}
+.smooth-val{font-family:'Space Mono',monospace;font-size:.75rem;color:var(--accent);min-width:30px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>HARMONICS ANALYZER</h1>
+  <p class="sub-title">REALTIME VOICE SPECTRUM</p>
+
+  <!-- コントロール -->
+  <div class="card">
+    <div class="ctrl-row">
+      <button class="btn btn-start" id="startBtn" onclick="toggleMic()">🎙️ 開始</button>
+      <span class="status" id="statusText">マイクボタンを押してください</span>
+    </div>
+    <div class="fft-row">
+      <span class="fft-label">FFTサイズ:</span>
+      <button class="fft-btn" onclick="setFftSize(2048)" data-size="2048">2048</button>
+      <button class="fft-btn active" onclick="setFftSize(4096)" data-size="4096">4096</button>
+      <button class="fft-btn" onclick="setFftSize(8192)" data-size="8192">8192</button>
+      <button class="fft-btn" onclick="setFftSize(16384)" data-size="16384">16384</button>
+    </div>
+    <div class="smooth-row">
+      <span class="smooth-label">スムージング:</span>
+      <input type="range" id="smoothing" min="0" max="0.95" step="0.05" value="0.8" oninput="updateSmoothing()">
+      <span class="smooth-val" id="smoothVal">0.80</span>
+    </div>
+  </div>
+
+  <!-- ピッチ表示 -->
+  <div class="card">
+    <div class="pitch-display">
+      <span class="pitch-hz" id="pitchHz">—</span>
+      <span class="pitch-unit">Hz</span>
+      <span class="pitch-note" id="pitchNote"></span>
+    </div>
+    <div class="pitch-sub" id="pitchSub">基音（平均ピッチ）</div>
+  </div>
+
+  <!-- 波形 -->
+  <div class="card">
+    <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:8px;font-family:'Space Mono',monospace;">WAVEFORM</div>
+    <div class="canvas-wrap"><canvas id="waveCanvas" height="60"></canvas></div>
+  </div>
+
+  <!-- スペクトル -->
+  <div class="card">
+    <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:8px;font-family:'Space Mono',monospace;">SPECTRUM</div>
+    <div class="canvas-wrap"><canvas id="specCanvas" height="200"></canvas></div>
+  </div>
+
+  <!-- 倍音リスト -->
+  <div class="card">
+    <div class="harmonic-title">HARMONICS LIST</div>
+    <div class="harmonic-list" id="harmonicList"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 状態
+// ============================================================
+let audioCtx=null, analyser=null, source=null, stream=null;
+let animId=null, running=false;
+let fftSize=4096;
+let pitchHistory=[];
+const MAX_PITCH_HIST=40;
+
+// ピッチ→音名
+const NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function freqToNote(hz){
+  if(hz<=0)return'';
+  const n=Math.round(12*Math.log2(hz/440)+69);
+  const name=NOTE_NAMES[((n%12)+12)%12];
+  const oct=Math.floor(n/12)-1;
+  return name+oct;
+}
+
+// ============================================================
+// マイク制御
+// ============================================================
+async function toggleMic(){
+  if(running){stopMic();return;}
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    analyser=audioCtx.createAnalyser();
+    analyser.fftSize=fftSize;
+    analyser.smoothingTimeConstant=parseFloat(document.getElementById('smoothing').value);
+    source=audioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+    running=true;
+    document.getElementById('startBtn').textContent='⏹ 停止';
+    document.getElementById('startBtn').classList.add('active');
+    document.getElementById('statusText').textContent='● LIVE';
+    document.getElementById('statusText').classList.add('live');
+    draw();
+  }catch(e){
+    alert('マイクのアクセスが許可されていません: '+e.message);
+  }
+}
+
+function stopMic(){
+  running=false;
+  if(animId)cancelAnimationFrame(animId);
+  if(source)source.disconnect();
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  if(audioCtx)audioCtx.close();
+  document.getElementById('startBtn').textContent='🎙️ 開始';
+  document.getElementById('startBtn').classList.remove('active');
+  document.getElementById('statusText').textContent='停止中';
+  document.getElementById('statusText').classList.remove('live');
+}
+
+function setFftSize(size){
+  fftSize=size;
+  document.querySelectorAll('.fft-btn').forEach(b=>{
+    b.classList.toggle('active',parseInt(b.dataset.size)===size);
+  });
+  if(analyser){
+    analyser.fftSize=size;
+  }
+}
+
+function updateSmoothing(){
+  const v=parseFloat(document.getElementById('smoothing').value);
+  document.getElementById('smoothVal').textContent=v.toFixed(2);
+  if(analyser)analyser.smoothingTimeConstant=v;
+}
+
+// ============================================================
+// ピッチ検出（自己相関法）
+// ============================================================
+function detectPitch(timeDomainData, sampleRate){
+  const buf=timeDomainData;
+  const SIZE=buf.length;
+  // RMSチェック
+  let rms=0;for(let i=0;i<SIZE;i++)rms+=buf[i]*buf[i];
+  rms=Math.sqrt(rms/SIZE);
+  if(rms<0.01)return null;
+
+  const minLag=Math.floor(sampleRate/500);
+  const maxLag=Math.floor(sampleRate/50);
+  let bestLag=-1,bestVal=-Infinity;
+  for(let lag=minLag;lag<=maxLag;lag++){
+    let s=0;
+    for(let i=0;i<SIZE-maxLag;i++)s+=buf[i]*buf[i+lag];
+    if(s>bestVal){bestVal=s;bestLag=lag;}
+  }
+  if(bestLag<0)return null;
+  // 放物線補間
+  const prev=bestLag>minLag?acAt(buf,SIZE,maxLag,bestLag-1):bestVal;
+  const next=bestLag<maxLag?acAt(buf,SIZE,maxLag,bestLag+1):bestVal;
+  const denom=prev-2*bestVal+next;
+  const fine=denom!==0?0.5*(prev-next)/(-denom):0;
+  return sampleRate/(bestLag+fine);
+}
+function acAt(buf,SIZE,maxLag,lag){
+  let s=0;for(let i=0;i<SIZE-maxLag;i++)s+=buf[i]*buf[i+lag];return s;
+}
+
+// ============================================================
+// 描画ループ
+// ============================================================
+function draw(){
+  if(!running)return;
+  animId=requestAnimationFrame(draw);
+
+  const bufLen=analyser.frequencyBinCount;
+  const freqData=new Float32Array(bufLen);
+  const timeData=new Float32Array(analyser.fftSize);
+  analyser.getFloatFrequencyData(freqData);
+  analyser.getFloatTimeDomainData(timeData);
+
+  const sampleRate=audioCtx.sampleRate;
+  const binHz=sampleRate/analyser.fftSize;
+
+  // ピッチ検出
+  const pitch=detectPitch(timeData,sampleRate);
+  if(pitch&&pitch>50&&pitch<600){
+    pitchHistory.push(pitch);
+    if(pitchHistory.length>MAX_PITCH_HIST)pitchHistory.shift();
+  }
+  const sorted=[...pitchHistory].sort((a,b)=>a-b);
+  const medPitch=sorted.length>0?sorted[Math.floor(sorted.length/2)]:null;
+
+  // ピッチ表示
+  const pitchEl=document.getElementById('pitchHz');
+  if(medPitch){
+    pitchEl.textContent=medPitch.toFixed(1);
+    const note=freqToNote(medPitch);
+    document.getElementById('pitchNote').textContent=note?'('+note+')':'';
+    // 色分け
+    if(medPitch<110)pitchEl.style.color='#4ff0b0';
+    else if(medPitch<165)pitchEl.style.color='#7eb8ff';
+    else if(medPitch<260)pitchEl.style.color='#ffd166';
+    else pitchEl.style.color='#ff6b6b';
+  }
+
+  // 波形描画
+  drawWave(timeData);
+  // スペクトル描画
+  drawSpectrum(freqData, binHz, bufLen, medPitch);
+  // 倍音リスト
+  if(medPitch)updateHarmonicList(freqData, binHz, bufLen, medPitch);
+}
+
+// ============================================================
+// 波形
+// ============================================================
+function drawWave(timeData){
+  const canvas=document.getElementById('waveCanvas');
+  const dpr=devicePixelRatio||1;
+  const W=canvas.offsetWidth*dpr,H=60*dpr;
+  if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(79,240,176,0.7)';ctx.lineWidth=1.5*dpr;
+  ctx.beginPath();
+  const step=W/timeData.length;
+  for(let i=0;i<timeData.length;i++){
+    const x=i*step;
+    const y=H/2+(timeData[i]*H*0.45);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+}
+
+// ============================================================
+// スペクトル
+// ============================================================
+function drawSpectrum(freqData, binHz, bufLen, pitch){
+  const canvas=document.getElementById('specCanvas');
+  const dpr=devicePixelRatio||1;
+  const W=canvas.offsetWidth*dpr,H=200*dpr;
+  if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
+
+  const pad={l:36*dpr,r:10*dpr,t:10*dpr,b:22*dpr};
+  const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+
+  const minFreq=20,maxFreq=pitch?Math.min(pitch*14,8000):4000;
+  const toX=f=>pad.l+((f-minFreq)/(maxFreq-minFreq))*pw;
+  const dBmin=-100,dBmax=-10;
+  const toY=db=>pad.t+ph-(Math.max(dBmin,Math.min(dBmax,db))-dBmin)/(dBmax-dBmin)*ph;
+
+  // グリッド・Y軸dBラベル
+  [-80,-60,-40,-20].forEach(db=>{
+    const y=toY(db);
+    ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();
+    ctx.fillStyle='#3a4050';ctx.font=`${8*dpr}px monospace`;ctx.textAlign='right';
+    ctx.fillText(db+'dB',pad.l-4,y+3);
+  });
+
+  // X軸Hzグリッド
+  const ticks=[];
+  let step=500;
+  if(maxFreq<2000)step=200;
+  if(maxFreq<1000)step=100;
+  for(let f=step;f<maxFreq;f+=step)ticks.push(f);
+  ticks.forEach(f=>{
+    const x=toX(f);
+    ctx.strokeStyle='#1a1e28';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ph);ctx.stroke();
+    ctx.fillStyle='#3a4050';ctx.font=`${8*dpr}px monospace`;ctx.textAlign='center';
+    const lbl=f>=1000?(f/1000).toFixed(1)+'k':f+'';
+    ctx.fillText(lbl,x,pad.t+ph+14*dpr);
+  });
+
+  // スペクトル曲線（グラデーション塗り）
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ph);
+  grad.addColorStop(0,'rgba(79,240,176,0.6)');
+  grad.addColorStop(1,'rgba(79,240,176,0.02)');
+
+  ctx.beginPath();
+  let first=true;
+  const minBin=Math.max(1,Math.floor(minFreq/binHz));
+  const maxBin=Math.min(Math.ceil(maxFreq/binHz),bufLen-1);
+  for(let b=minBin;b<=maxBin;b++){
+    const f=b*binHz;
+    const x=toX(f);
+    const y=toY(freqData[b]);
+    first?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    first=false;
+  }
+  // 塗りつぶし
+  ctx.lineTo(toX(maxBin*binHz),pad.t+ph);
+  ctx.lineTo(toX(minFreq),pad.t+ph);
+  ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+
+  // 輪郭線
+  ctx.beginPath();first=true;
+  for(let b=minBin;b<=maxBin;b++){
+    const f=b*binHz;
+    const x=toX(f);const y=toY(freqData[b]);
+    first?ctx.moveTo(x,y):ctx.lineTo(x,y);first=false;
+  }
+  ctx.strokeStyle='rgba(79,240,176,0.8)';ctx.lineWidth=1.5*dpr;ctx.stroke();
+
+  // 倍音マーカー
+  if(!pitch)return;
+  const COLORS=['#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff'];
+  for(let h=0;h<12;h++){
+    const centerHz=pitch*(h+1);
+    if(centerHz>maxFreq||centerHz<minFreq)continue;
+    // ±8%でピーク探索
+    const loB=Math.max(minBin,Math.round(centerHz*0.92/binHz));
+    const hiB=Math.min(Math.round(centerHz*1.08/binHz),bufLen-1);
+    let peakB=loB,peakV=freqData[loB];
+    for(let b=loB;b<=hiB;b++){if(freqData[b]>peakV){peakV=freqData[b];peakB=b;}}
+    const peakHz=peakB*binHz;
+    const x=toX(peakHz);
+    const y=toY(peakV);
+    if(y<pad.t||y>pad.t+ph)continue;
+
+    // 縦点線
+    ctx.strokeStyle=COLORS[h]+'55';ctx.lineWidth=1*dpr;ctx.setLineDash([3*dpr,3*dpr]);
+    ctx.beginPath();ctx.moveTo(x,y+6*dpr);ctx.lineTo(x,pad.t+ph);ctx.stroke();
+    ctx.setLineDash([]);
+
+    // マーカー丸
+    ctx.beginPath();ctx.arc(x,y,5*dpr,0,Math.PI*2);ctx.fillStyle=COLORS[h];ctx.fill();
+
+    // 番号
+    ctx.fillStyle=COLORS[h];ctx.font=`bold ${9*dpr}px monospace`;ctx.textAlign='center';
+    ctx.fillText(h+1,x,y-16*dpr);
+    // Hz
+    const hzLbl=peakHz>=1000?(peakHz/1000).toFixed(2)+'k':Math.round(peakHz)+'';
+    ctx.fillStyle=COLORS[h]+'cc';ctx.font=`${8*dpr}px monospace`;
+    ctx.fillText(hzLbl+'Hz',x,y-6*dpr);
+  }
+}
+
+// ============================================================
+// 倍音リスト
+// ============================================================
+const H_COLORS=['#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff'];
+function updateHarmonicList(freqData, binHz, bufLen, pitch){
+  const list=document.getElementById('harmonicList');
+  let html='';
+  for(let h=0;h<12;h++){
+    const centerHz=pitch*(h+1);
+    if(centerHz>audioCtx.sampleRate/2)break;
+    const loB=Math.max(1,Math.round(centerHz*0.92/binHz));
+    const hiB=Math.min(Math.round(centerHz*1.08/binHz),bufLen-1);
+    let peakB=loB,peakV=freqData[loB];
+    for(let b=loB;b<=hiB;b++){if(freqData[b]>peakV){peakV=freqData[b];peakB=b;}}
+    const peakHz=peakB*binHz;
+    const hzStr=peakHz>=1000?(peakHz/1000).toFixed(3)+'kHz':peakHz.toFixed(1)+'Hz';
+    const dbStr=peakV.toFixed(1)+'dB';
+    const label=h===0?'基音':'×'+(h+1);
+    html+=`<div class="h-item">
+      <span class="h-num" style="color:${H_COLORS[h]}">${label}</span>
+      <span class="h-hz" style="color:${H_COLORS[h]}">${hzStr}</span>
+      <span class="h-db">${dbStr}</span>
+    </div>`;
+  }
+  list.innerHTML=html;
+}
+</script>
+</body>
+</html>
