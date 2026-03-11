@@ -565,6 +565,8 @@ function displayResults(r){
   document.getElementById('subFlicker').textContent=r.flickerScore+'点';
   document.getElementById('subFlicker').className='sub-score-val '+flickerColorClass(r.flickerSlope);
   document.getElementById('subFlickerBar').style.width=r.flickerScore+'%';
+  const flickerBarColor=flickerColorClass(r.flickerSlope)==='good'?'var(--accent)':flickerColorClass(r.flickerSlope)==='warn'?'var(--accent4)':'var(--accent2)';
+  document.getElementById('subFlickerBar').style.background=flickerBarColor;
 
   // メトリクス
   document.getElementById('metPitch').textContent=Math.round(r.meanPitch)+' Hz';
