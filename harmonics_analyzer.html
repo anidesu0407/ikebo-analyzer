@@ -2,748 +2,983 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Voice Analyzer Pro</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOICE ANALYZER PRO – 本格いい声診断</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
-:root{
-  --bg:#0a0c10;--panel:#111318;--border:#1e2330;
-  --accent:#4ff0b0;--accent2:#ff6b6b;--accent3:#7eb8ff;--accent4:#ffd166;--accent5:#c084fc;
-  --text-main:#e8eaf0;--text-sub:#9aa0b0;--text-dim:#4a5060;
-}
-body{background:var(--bg);color:var(--text-main);font-family:'Zen Kaku Gothic New',sans-serif;min-height:100vh;
-  background-image:radial-gradient(ellipse at 15% 50%,rgba(79,240,176,.05) 0%,transparent 60%),
-                   radial-gradient(ellipse at 85% 20%,rgba(126,184,255,.05) 0%,transparent 60%);}
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Space+Mono:wght@400;700&display=swap');
+  :root{--bg:#0a0c10;--panel:#111318;--border:#1e2330;--accent:#4ff0b0;--accent2:#ff6b6b;--accent3:#7eb8ff;--accent4:#ffd166;--accent5:#c084fc;--text:#c8d0e0;--text-dim:#8a9ab0;--glow:0 0 20px rgba(79,240,176,0.3);}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Zen Kaku Gothic New',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px;background-image:radial-gradient(ellipse at 20% 20%,rgba(79,240,176,0.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(126,184,255,0.04) 0%,transparent 60%);}
+  header{text-align:center;margin-bottom:40px;}
+  header h1{font-family:'Space Mono',monospace;font-size:clamp(1.2rem,4vw,2rem);color:var(--accent);letter-spacing:.1em;text-shadow:var(--glow);margin-bottom:8px;}
+  header p{color:var(--text-dim);font-size:.9rem;font-weight:300;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:720px;margin-bottom:20px;}
+  .card-title{font-family:'Space Mono',monospace;font-size:.78rem;color:var(--accent3);letter-spacing:.15em;text-transform:uppercase;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px;}
+  .tab-row{display:flex;gap:8px;margin-bottom:20px;}
+  .tab-btn{flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'Space Mono',monospace;font-size:.75rem;cursor:pointer;transition:all .2s;}
+  .tab-btn.active{background:rgba(79,240,176,.1);border-color:var(--accent);color:var(--accent);box-shadow:var(--glow);}
+  .upload-zone{border:2px dashed var(--border);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .3s ease;}
+  .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(79,240,176,.04);box-shadow:var(--glow);}
+  .upload-zone input{display:none;}
+  .upload-icon{font-size:2rem;margin-bottom:8px;display:block;opacity:.6;}
+  .upload-zone p{color:var(--text-dim);font-size:.88rem;line-height:1.7;}
+  .upload-zone strong{color:var(--accent);}
+  .mic-zone{text-align:center;padding:20px 20px 8px;}
+  .mic-btn{width:72px;height:72px;border-radius:50%;border:2px solid var(--accent);background:rgba(79,240,176,.08);color:var(--accent);font-size:1.8rem;cursor:pointer;transition:all .2s;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;}
+  .mic-btn:hover{background:rgba(79,240,176,.18);box-shadow:var(--glow);}
+  .mic-btn.recording{background:rgba(255,107,107,.15);border-color:var(--accent2);color:var(--accent2);animation:pulse 1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,107,.4);}50%{box-shadow:0 0 0 12px rgba(255,107,107,0);}}
+  .mic-status{font-size:.88rem;color:var(--text-dim);margin-bottom:6px;}
+  .mic-timer{font-family:'Space Mono',monospace;font-size:1.3rem;color:var(--accent2);display:none;}
+  .mic-timer.show{display:block;}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:8px;border:none;cursor:pointer;font-family:'Space Mono',monospace;font-size:.78rem;letter-spacing:.05em;transition:all .2s ease;}
+  .btn-primary{background:var(--accent);color:#0a0c10;font-weight:700;}
+  .btn-primary:hover{background:#6fffc8;box-shadow:var(--glow);transform:translateY(-1px);}
+  .btn-primary:disabled{opacity:.3;cursor:not-allowed;transform:none;}
+  .btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text-dim);}
+  .btn-secondary:hover{border-color:var(--accent3);color:var(--accent3);}
+  .btn-tweet{background:#1d9bf0;color:#fff;font-weight:700;}
+  .btn-tweet:hover{background:#1a8cd8;transform:translateY(-1px);}
+  .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px;}
+  .file-name{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--accent);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .canvas-wrap{position:relative;width:100%;margin-bottom:12px;}
+  canvas{width:100%;border-radius:8px;background:#080a0e;display:block;}
+  .audio-player{width:100%;margin-top:12px;border-radius:8px;accent-color:var(--accent);}
 
-.container{max-width:900px;margin:0 auto;padding:0 16px 60px;}
+  /* 判定 */
+  .verdict{border-radius:12px;padding:18px 22px;display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+  .verdict.good{background:rgba(79,240,176,.08);border:1px solid rgba(79,240,176,.3);}
+  .verdict.warn{background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.3);}
+  .verdict.bad{background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);}
+  .verdict-icon{font-size:2rem;flex-shrink:0;}
+  .verdict-text h3{font-size:1rem;font-weight:700;margin-bottom:4px;}
+  .verdict-text p{font-size:.85rem;color:var(--text-dim);line-height:1.7;}
 
-h1{font-family:'Space Mono',monospace;font-size:1rem;letter-spacing:.25em;color:var(--accent);text-align:center;padding:22px 0 4px;}
-.sub-title{text-align:center;font-size:.72rem;color:var(--text-dim);letter-spacing:.15em;margin-bottom:18px;}
+  /* スコアゲージ */
+  .score-gauge-wrap{margin:18px 0;}
+  .score-label-row{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text-dim);margin-bottom:6px;font-family:'Space Mono',monospace;}
+  .score-track{height:8px;border-radius:4px;background:linear-gradient(to right,var(--accent2),var(--accent4),var(--accent));position:relative;}
+  .score-marker{position:absolute;top:-4px;width:16px;height:16px;border-radius:50%;background:white;box-shadow:0 0 8px rgba(255,255,255,.5);transform:translateX(-50%);transition:left .8s cubic-bezier(.34,1.56,.64,1);}
 
-/* カード */
-.card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;}
-.card-title{font-family:'Space Mono',monospace;font-size:.72rem;letter-spacing:.12em;color:var(--text-dim);margin-bottom:10px;}
+  /* サブスコア 6項目 */
+  .sub-scores{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;}
+  @media(max-width:500px){.sub-scores{grid-template-columns:1fr 1fr;}}
+  .sub-score-card{background:#080a0e;border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;}
+  .sub-score-label{font-size:.68rem;color:var(--text-dim);margin-bottom:5px;line-height:1.5;}
+  .sub-score-val{font-family:'Space Mono',monospace;font-size:1.2rem;font-weight:700;}
+  .sub-score-bar-wrap{height:3px;border-radius:2px;background:#1a1e28;margin-top:7px;overflow:hidden;}
+  .sub-score-bar{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.34,1.56,.64,1);}
 
-/* コントロール */
-.ctrl-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.btn{padding:8px 22px;border-radius:8px;border:none;cursor:pointer;font-family:'Space Mono',monospace;font-size:.85rem;transition:all .15s;}
-.btn-start{background:var(--accent);color:#0a0c10;font-weight:700;}
-.btn-start:hover{filter:brightness(1.1);}
-.btn-start.active{background:var(--accent2);color:#fff;}
-.status{font-size:.8rem;color:var(--text-dim);font-family:'Space Mono',monospace;}
-.status.live{color:var(--accent);}
-.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:6px;animation:pulse 1s infinite;}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
+  /* レーダー+メトリクス横並び */
+  .radar-metrics-row{display:grid;grid-template-columns:240px 1fr;gap:16px;margin-bottom:20px;align-items:start;}
+  @media(max-width:560px){.radar-metrics-row{grid-template-columns:1fr;}}
 
-.fft-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;}
-.fft-label{font-size:.72rem;color:var(--text-dim);font-family:'Space Mono',monospace;}
-.fft-btn{padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-sub);font-family:'Space Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .15s;}
-.fft-btn.active{border-color:var(--accent);color:var(--accent);}
-.smooth-row{display:flex;align-items:center;gap:8px;margin-top:8px;}
-.smooth-label{font-size:.72rem;color:var(--text-dim);white-space:nowrap;font-family:'Space Mono',monospace;}
-input[type=range]{-webkit-appearance:none;height:3px;border-radius:2px;background:var(--border);outline:none;flex:1;}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer;}
-.smooth-val{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--accent);min-width:32px;}
+  /* メトリクス */
+  .metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .metric{background:#080a0e;border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+  .metric-label{font-size:.7rem;color:var(--text-dim);letter-spacing:.04em;margin-bottom:4px;}
+  .metric-value{font-family:'Space Mono',monospace;font-size:1.3rem;font-weight:700;}
+  .metric-sub{font-size:.7rem;color:var(--text-dim);margin-top:3px;}
+  .good{color:var(--accent);} .warn{color:var(--accent4);} .bad{color:var(--accent2);}
 
-/* ピッチ大表示 */
-.pitch-display{display:flex;align-items:baseline;gap:8px;justify-content:center;padding:10px 0 2px;}
-.pitch-hz{font-family:'Space Mono',monospace;font-size:2.8rem;font-weight:700;color:var(--accent);line-height:1;transition:color .2s;}
-.pitch-unit{font-size:1.1rem;color:var(--text-sub);}
-.pitch-note{font-size:.9rem;color:var(--accent4);font-family:'Space Mono',monospace;}
-.pitch-comment{text-align:center;font-size:.78rem;color:var(--text-dim);margin-top:2px;}
+  /* 倍音バー */
+  .harmonic-chart-wrap{margin-bottom:8px;}
+  .harmonic-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:5px;}
+  .hbar-label{font-family:'Space Mono',monospace;font-size:.7rem;color:var(--text-dim);width:48px;text-align:right;flex-shrink:0;}
+  .hbar-track{flex:1;height:9px;border-radius:5px;background:#1a1e28;overflow:hidden;}
+  .hbar-fill{height:100%;border-radius:5px;transition:width .6s cubic-bezier(.34,1.56,.64,1);}
+  .hbar-val{font-family:'Space Mono',monospace;font-size:.7rem;width:44px;text-align:left;flex-shrink:0;}
 
-/* メトリクスグリッド */
-.metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:12px;}
-.metric-card{background:#0d0f14;border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
-.metric-label{font-size:.7rem;color:var(--text-dim);font-family:'Space Mono',monospace;letter-spacing:.08em;margin-bottom:6px;}
-.metric-value{font-family:'Space Mono',monospace;font-size:1.4rem;font-weight:700;line-height:1;}
-.metric-sub{font-size:.72rem;color:var(--text-dim);margin-top:4px;}
-.metric-bar-wrap{height:3px;background:var(--border);border-radius:2px;margin-top:8px;}
-.metric-bar{height:100%;border-radius:2px;transition:width .3s;}
-.good{color:var(--accent);}
-.warn{color:var(--accent4);}
-.bad{color:var(--accent2);}
+  .loading{display:none;text-align:center;padding:28px;}
+  .loading.show{display:block;}
+  .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .hidden{display:none!important;}
 
-/* Canvas */
-.canvas-wrap{width:100%;border-radius:8px;overflow:hidden;background:#080a0e;}
-canvas{display:block;width:100%;height:auto;}
+  .script-box{background:#080a0e;border:1px solid var(--border);border-radius:12px;padding:18px 22px;font-size:.92rem;line-height:2.3;color:var(--text);}
+  .howto{font-size:.85rem;color:var(--text);line-height:2.0;}
+  .howto li{margin-bottom:4px;list-style:none;padding-left:1.4em;position:relative;}
+  .howto li::before{content:'›';position:absolute;left:0;color:var(--accent);}
+  .share-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
 
-/* ピッチトレース */
-.trace-wrap{position:relative;}
-
-/* 倍音リスト */
-.harmonic-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:6px;}
-.h-item{background:#0d0f14;border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px;}
-.h-num{font-family:'Space Mono',monospace;font-size:.7rem;min-width:28px;font-weight:700;}
-.h-hz{font-family:'Space Mono',monospace;font-size:.92rem;font-weight:700;}
-.h-db{font-size:.7rem;color:var(--text-dim);margin-left:auto;}
-
-/* 抑揚メーター */
-.intonation-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-top:6px;}
-.intonation-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent3),var(--accent));transition:width .2s;}
-
-/* タブ */
-.tab-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
-.tab-btn{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-sub);font-family:'Space Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .15s;}
-.tab-btn.active{background:var(--accent);color:#0a0c10;border-color:var(--accent);font-weight:700;}
-.tab-content{display:none;}
-.tab-content.active{display:block;}
+  /* アドバイスボックス */
+  .advice-box{background:linear-gradient(135deg,#0f1f18,#0f1020);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-top:16px;}
+  .advice-title{font-size:.75rem;color:var(--accent3);margin-bottom:6px;font-family:'Space Mono',monospace;}
+  .advice-text{font-size:.88rem;color:var(--text-dim);line-height:1.8;}
 </style>
 </head>
 <body>
-<div class="container">
+<header>
   <h1>VOICE ANALYZER PRO</h1>
-  <p class="sub-title">REALTIME PROFESSIONAL VOICE ANALYSIS</p>
+  <p>声の倍音・安定性・クリアさを総合解析して「いい声」を診断します</p>
+</header>
 
-  <!-- コントロール -->
-  <div class="card">
-    <div class="ctrl-row">
-      <button class="btn btn-start" id="startBtn" onclick="toggleMic()">🎙️ 開始</button>
-      <span class="status" id="statusText">マイクボタンを押してください</span>
+<!-- 台本 -->
+<div class="card">
+  <div class="card-title">練習用サンプル台本（約20秒）</div>
+  <p style="font-size:.88rem;color:var(--text-dim);margin-bottom:14px;line-height:1.7;">ゆっくり読んでみてください。</p>
+  <div class="script-box">深夜、静かな図書館で、ページをめくる音だけが響いていた。古い本の匂いと、かすかなコーヒーの香り。ここにいると、時間が止まったような気がする。</div>
+</div>
+
+<!-- 入力 -->
+<div class="card">
+  <div class="card-title">声を解析する</div>
+  <div class="tab-row">
+    <button class="tab-btn active" id="tabFile" onclick="switchInputTab('file')">📁 ファイルをアップロード</button>
+    <button class="tab-btn" id="tabMic" onclick="switchInputTab('mic')">🎙️ マイクで録音</button>
+  </div>
+  <div id="fileMode">
+    <div class="upload-zone" id="dropZone">
+      <label for="fileInput" style="cursor:pointer;display:block;">
+        <span class="upload-icon">📂</span>
+        <p><strong>クリックまたはドラッグ＆ドロップ</strong><br>WAV・MP3・M4A・OGG など　※5秒以上推奨</p>
+      </label>
+      <input type="file" id="fileInput" accept="audio/*">
     </div>
-    <div class="fft-row">
-      <span class="fft-label">FFT:</span>
-      <button class="fft-btn" onclick="setFftSize(2048)" data-size="2048">2048</button>
-      <button class="fft-btn active" onclick="setFftSize(4096)" data-size="4096">4096</button>
-      <button class="fft-btn" onclick="setFftSize(8192)" data-size="8192">8192</button>
-      <button class="fft-btn" onclick="setFftSize(16384)" data-size="16384">16384</button>
+    <div class="controls">
+      <span class="file-name" id="fileName">ファイル未選択</span>
+      <button class="btn btn-primary" id="analyzeBtn" disabled>▶ 解析する</button>
     </div>
-    <div class="smooth-row">
-      <span class="smooth-label">スムージング:</span>
-      <input type="range" id="smoothing" min="0" max="0.95" step="0.05" value="0.8" oninput="updateSmoothing()">
-      <span class="smooth-val" id="smoothVal">0.80</span>
+  </div>
+  <div id="micMode" class="hidden">
+    <div class="mic-zone">
+      <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎙️</button>
+      <div class="mic-status" id="micStatus">ボタンを押して録音開始</div>
+      <div class="mic-timer" id="micTimer">0:00</div>
+    </div>
+    <div class="controls" style="justify-content:center;">
+      <button class="btn btn-primary" id="micAnalyzeBtn" disabled>▶ 解析する</button>
+    </div>
+  </div>
+  <audio id="audioPlayer" class="audio-player hidden" controls></audio>
+</div>
+
+<!-- 波形 -->
+<div class="card hidden" id="waveCard">
+  <div class="card-title">波形 / スペクトル</div>
+  <div class="canvas-wrap"><canvas id="waveCanvas" height="70"></canvas></div>
+  <div class="canvas-wrap"><canvas id="specCanvas" height="70"></canvas></div>
+</div>
+
+<!-- ローディング -->
+<div class="card hidden" id="loadingCard">
+  <div class="loading show"><div class="spinner"></div><p style="color:var(--text-dim);font-size:.88rem;">声を解析中…</p></div>
+</div>
+
+<!-- 結果 -->
+<div class="card hidden" id="resultCard">
+  <div class="card-title">解析結果</div>
+
+  <!-- 判定 -->
+  <div id="verdictBox" class="verdict good">
+    <div class="verdict-icon" id="verdictIcon">✨</div>
+    <div class="verdict-text"><h3 id="verdictTitle">判定</h3><p id="verdictDesc">説明</p></div>
+  </div>
+
+  <!-- スコアゲージ -->
+  <div class="score-gauge-wrap">
+    <div class="score-label-row"><span>総合スコア</span><span id="scoreLabel" style="color:var(--accent);font-size:1rem;">−</span></div>
+    <div class="score-track"><div class="score-marker" id="scoreMarker" style="left:0%"></div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:5px;">
+      <span style="font-size:.65rem;color:var(--text-dim);">0</span>
+      <span style="font-size:.65rem;color:var(--text-dim);">50</span>
+      <span style="font-size:.65rem;color:var(--text-dim);">100</span>
     </div>
   </div>
 
-  <!-- ピッチ・声量 大表示 -->
-  <div class="card">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center;">
-      <div>
-        <div class="card-title">PITCH（基音）</div>
-        <div class="pitch-display" style="justify-content:flex-start;">
-          <span class="pitch-hz" id="pitchHz">—</span>
-          <span class="pitch-unit">Hz</span>
-          <span class="pitch-note" id="pitchNote"></span>
+  <!-- サブスコア 6項目 -->
+  <div class="sub-scores">
+    <div class="sub-score-card">
+      <div class="sub-score-label">🎙️ 基音の低さ<br><span style="font-size:.62rem;color:#5a6070">× 20%</span></div>
+      <div class="sub-score-val good" id="subPitch">−</div>
+      <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subPitchBar" style="width:0%;background:var(--accent)"></div></div>
+    </div>
+    <div class="sub-score-card">
+      <div class="sub-score-label">🎻 倍音の豊かさ<br><span style="font-size:.62rem;color:#5a6070">× 20%</span></div>
+      <div class="sub-score-val good" id="subRich">−</div>
+      <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subRichBar" style="width:0%;background:var(--accent3)"></div></div>
+    </div>
+    <div class="sub-score-card">
+      <div class="sub-score-label">✨ 声のハリ<br><span style="font-size:.62rem;color:#5a6070">× 15%</span></div>
+      <div class="sub-score-val good" id="subFormant">−</div>
+      <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subFormantBar" style="width:0%;background:var(--accent4)"></div></div>
+    </div>
+    <div class="sub-score-card">
+      <div class="sub-score-label">🌊 声のゆらぎ<br><span style="font-size:.62rem;color:#5a6070">× 15%</span></div>
+      <div class="sub-score-val good" id="subFlicker">−</div>
+      <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subFlickerBar" style="width:0%;background:var(--accent)"></div></div>
+    </div>
+    <div class="sub-score-card">
+      <div class="sub-score-label">🔬 声の安定性<br><span style="font-size:.62rem;color:#5a6070">Jitter+Shimmer × 15%</span></div>
+      <div class="sub-score-val good" id="subStability">−</div>
+      <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subStabilityBar" style="width:0%;background:var(--accent5)"></div></div>
+    </div>
+    <div class="sub-score-card">
+      <div class="sub-score-label">💎 声のクリアさ<br><span style="font-size:.62rem;color:#5a6070">HNR × 15%</span></div>
+      <div class="sub-score-val good" id="subHNR">−</div>
+      <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subHNRBar" style="width:0%;background:var(--accent3)"></div></div>
+    </div>
+  </div>
+
+  <!-- レーダー + メトリクス -->
+  <div class="radar-metrics-row">
+    <div>
+      <div style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--text-dim);margin-bottom:8px;">RADAR CHART</div>
+      <canvas id="radarCanvas" width="220" height="220" style="background:transparent;display:block;"></canvas>
+    </div>
+    <div>
+      <div style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--text-dim);margin-bottom:8px;">METRICS</div>
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-label">基音（平均ピッチ）</div>
+          <div class="metric-value good" id="metPitch">−</div>
+          <div class="metric-sub" id="metPitchSub">Hz</div>
         </div>
-        <div class="pitch-comment" id="pitchComment" style="text-align:left;">—</div>
+        <div class="metric">
+          <div class="metric-label">倍音エネルギー比</div>
+          <div class="metric-value good" id="metHRatio">−</div>
+          <div class="metric-sub">基音に対する倍音強さ</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Singer's Formant</div>
+          <div class="metric-value good" id="metFormant">−</div>
+          <div class="metric-sub">2〜4kHz帯エネルギー</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">1/fゆらぎ 傾き</div>
+          <div class="metric-value" id="metSlope">−</div>
+          <div class="metric-sub">理想値: −1.0 付近</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Jitter（ピッチ変動）</div>
+          <div class="metric-value good" id="metJitter">−</div>
+          <div class="metric-sub">小さいほど安定</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Shimmer（音量変動）</div>
+          <div class="metric-value good" id="metShimmer">−</div>
+          <div class="metric-sub">小さいほど安定</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">HNR（調和雑音比）</div>
+          <div class="metric-value good" id="metHNR">−</div>
+          <div class="metric-sub">高いほどクリアな声</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">抑揚の幅</div>
+          <div class="metric-value good" id="metIntonation">−</div>
+          <div class="metric-sub">ピッチ変動幅（半音）</div>
+        </div>
       </div>
-      <div>
-        <div class="card-title">VOLUME（声量）</div>
-        <div class="pitch-display" style="justify-content:flex-start;">
-          <span class="pitch-hz" id="volumeDb" style="font-size:2.2rem;">—</span>
-          <span class="pitch-unit">dB</span>
-        </div>
-        <div style="margin-top:6px;">
-          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
-            <div id="volumeBar" style="height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,var(--accent3),var(--accent),var(--accent4));transition:width .1s;"></div>
-          </div>
-          <div class="pitch-comment" id="volumeComment" style="text-align:left;margin-top:4px;">—</div>
-        </div>
-      </div>
     </div>
   </div>
 
-  <!-- メトリクス -->
-  <div class="metrics-grid">
-    <div class="metric-card">
-      <div class="metric-label">JITTER（ピッチ安定性）</div>
-      <div class="metric-value good" id="metJitter">—</div>
-      <div class="metric-sub">小さいほど安定した声</div>
-      <div class="metric-bar-wrap"><div class="metric-bar" id="barJitter" style="width:0%;background:var(--accent)"></div></div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">SHIMMER（音量安定性）</div>
-      <div class="metric-value good" id="metShimmer">—</div>
-      <div class="metric-sub">小さいほど安定した声</div>
-      <div class="metric-bar-wrap"><div class="metric-bar" id="barShimmer" style="width:0%;background:var(--accent3)"></div></div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">HNR（調和雑音比）</div>
-      <div class="metric-value good" id="metHNR">—</div>
-      <div class="metric-sub">高いほどクリアな声</div>
-      <div class="metric-bar-wrap"><div class="metric-bar" id="barHNR" style="width:0%;background:var(--accent4)"></div></div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">INTONATION（抑揚）</div>
-      <div class="metric-value good" id="metIntonation">—</div>
-      <div class="metric-sub">ピッチ変動幅（半音数）</div>
-      <div class="metric-bar-wrap"><div class="metric-bar" id="barIntonation" style="width:0%;background:var(--accent5)"></div></div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">SPEECH RATE（話速）</div>
-      <div class="metric-value good" id="metSpeechRate">—</div>
-      <div class="metric-sub">音節数/秒の推定</div>
-      <div class="metric-bar-wrap"><div class="metric-bar" id="barSpeechRate" style="width:0%;background:var(--accent2)"></div></div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">SPECTRAL CENTROID</div>
-      <div class="metric-value good" id="metCentroid">—</div>
-      <div class="metric-sub">声の明るさ・重さ</div>
-      <div class="metric-bar-wrap"><div class="metric-bar" id="barCentroid" style="width:0%;background:var(--accent3)"></div></div>
-    </div>
+  <!-- 倍音スペクトル -->
+  <div class="card-title" style="margin-top:4px">倍音スペクトル</div>
+  <div class="canvas-wrap" style="margin-bottom:14px;"><canvas id="harmonicCanvas" height="200"></canvas></div>
+  <div class="harmonic-chart-wrap" id="harmonicChart"></div>
+
+  <!-- アドバイス -->
+  <div class="advice-box">
+    <div class="advice-title">💡 改善アドバイス</div>
+    <div class="advice-text" id="adviceText">−</div>
   </div>
 
-  <!-- タブ -->
-  <div class="card">
-    <div class="tab-row">
-      <button class="tab-btn active" onclick="switchTab('spectrum')">SPECTRUM</button>
-      <button class="tab-btn" onclick="switchTab('pitch')">PITCH TRACE</button>
-      <button class="tab-btn" onclick="switchTab('wave')">WAVEFORM</button>
-      <button class="tab-btn" onclick="switchTab('harmonics')">HARMONICS</button>
-    </div>
-
-    <!-- スペクトル -->
-    <div class="tab-content active" id="tab-spectrum">
-      <div class="canvas-wrap"><canvas id="specCanvas" height="220"></canvas></div>
-    </div>
-
-    <!-- ピッチトレース -->
-    <div class="tab-content" id="tab-pitch">
-      <div class="canvas-wrap"><canvas id="pitchCanvas" height="180"></canvas></div>
-    </div>
-
-    <!-- 波形 -->
-    <div class="tab-content" id="tab-wave">
-      <div class="canvas-wrap"><canvas id="waveCanvas" height="100"></canvas></div>
-    </div>
-
-    <!-- 倍音リスト -->
-    <div class="tab-content" id="tab-harmonics">
-      <div class="harmonic-list" id="harmonicList"></div>
-    </div>
+  <!-- シェア -->
+  <div class="share-row">
+    <button class="btn btn-secondary" onclick="saveImage()">💾 画像で保存</button>
+    <button class="btn btn-tweet" onclick="tweetResult()">𝕏 結果をポスト</button>
   </div>
+</div>
+
+<!-- ガイド -->
+<div class="card">
+  <div class="card-title">読み方ガイド</div>
+  <ul class="howto">
+    <li><strong style="color:var(--accent)">基音が低いほど</strong>有利。男性80〜165Hz、女性165〜260Hzが目安</li>
+    <li><strong style="color:var(--accent3)">倍音エネルギー比</strong>が高いほど声に深みと温かみがある</li>
+    <li><strong style="color:var(--accent4)">Singer's Formant（2〜4kHz）</strong>が高いと声にハリが出て通りやすくなる</li>
+    <li><strong style="color:var(--accent5)">Jitter・Shimmer</strong>はピッチと音量のブレ。小さいほど安定した声</li>
+    <li><strong style="color:var(--accent3)">HNR（調和雑音比）</strong>が高いほど雑音が少なくクリアな声</li>
+    <li><strong style="color:var(--accent2)">1/fゆらぎ</strong>の傾きが −0.7〜−1.3 付近が「心地よい声」</li>
+    <li>録音は<strong style="color:var(--accent)">静かな環境</strong>でマイクとの距離10〜15cmが目安</li>
+  </ul>
 </div>
 
 <script>
 // ============================================================
 // 状態
 // ============================================================
-let audioCtx=null,analyser=null,source=null,stream=null;
-let animId=null,running=false;
-let fftSize=4096;
-let currentTab='spectrum';
+let audioBuffer=null,audioCtx=null,mediaRecorder=null,recordedChunks=[],timerInterval=null,recordSeconds=0;
+let lastResult=null;
+function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
 
-// ピッチ履歴
-const MAX_HIST=80;
-const pitchHistory=[];
-const rmsHistory=[];
-const pitchTraceHistory=[];// 時系列用
-const MAX_TRACE=200;
-
-// 話速用
-let voicedFrames=0,unvoicedFrames=0,syllableCount=0;
-let prevVoiced=false,lastSyllableTime=0;
-let speechRateHistory=[];
-
-// ジッター・シマー計算用
-const jitterBuf=[];// ピリオド（秒）
-const shimmerBuf=[];// RMSピーク
-const MAX_JS_BUF=50;
-
-// 音名
-const NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-function freqToNote(hz){
-  if(hz<=0)return'';
-  const n=Math.round(12*Math.log2(hz/440)+69);
-  return NOTE_NAMES[((n%12)+12)%12]+Math.floor(n/12-1);
-}
-function freqToSemitone(hz){
-  return hz>0?12*Math.log2(hz/440)+69:0;
+// ============================================================
+// タブ切り替え（入力）
+// ============================================================
+function switchInputTab(mode){
+  document.getElementById('tabFile').classList.toggle('active',mode==='file');
+  document.getElementById('tabMic').classList.toggle('active',mode==='mic');
+  document.getElementById('fileMode').classList.toggle('hidden',mode!=='file');
+  document.getElementById('micMode').classList.toggle('hidden',mode!=='mic');
+  document.getElementById('waveCard').classList.add('hidden');
+  document.getElementById('resultCard').classList.add('hidden');
+  document.getElementById('audioPlayer').classList.add('hidden');
+  audioBuffer=null;
 }
 
 // ============================================================
-// マイク
+// ファイル入力
 // ============================================================
-async function toggleMic(){
-  if(running){stopMic();return;}
+const fileInput=document.getElementById('fileInput');
+const analyzeBtn=document.getElementById('analyzeBtn');
+const dropZone=document.getElementById('dropZone');
+fileInput.addEventListener('change',e=>loadFile(e.target.files[0]));
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);});
+
+async function loadFile(file){
+  if(!file||!file.type.startsWith('audio/'))return;
+  document.getElementById('fileName').textContent=file.name;
+  analyzeBtn.disabled=false;
+  const ctx=getCtx();
+  const buf=await file.arrayBuffer();
+  audioBuffer=await ctx.decodeAudioData(buf);
+  const url=URL.createObjectURL(file);
+  const player=document.getElementById('audioPlayer');
+  player.src=url;player.classList.remove('hidden');
+  drawWaveform();
+}
+analyzeBtn.addEventListener('click',()=>{if(audioBuffer)analyzeAudio();});
+
+// ============================================================
+// マイク録音
+// ============================================================
+async function toggleRecording(){
+  if(mediaRecorder&&mediaRecorder.state==='recording'){
+    mediaRecorder.stop();
+    clearInterval(timerInterval);
+    document.getElementById('micBtn').classList.remove('recording');
+    document.getElementById('micStatus').textContent='録音完了。解析してください。';
+    document.getElementById('micTimer').classList.remove('show');
+    return;
+  }
   try{
-    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
-    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-    analyser=audioCtx.createAnalyser();
-    analyser.fftSize=fftSize;
-    analyser.smoothingTimeConstant=parseFloat(document.getElementById('smoothing').value);
-    source=audioCtx.createMediaStreamSource(stream);
-    source.connect(analyser);
-    running=true;
-    document.getElementById('startBtn').textContent='⏹ 停止';
-    document.getElementById('startBtn').classList.add('active');
-    document.getElementById('statusText').innerHTML='<span class="live-dot"></span>LIVE';
-    document.getElementById('statusText').classList.add('live');
-    draw();
-  }catch(e){alert('マイクのアクセスが許可されていません: '+e.message);}
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    recordedChunks=[];recordSeconds=0;
+    mediaRecorder=new MediaRecorder(stream);
+    mediaRecorder.ondataavailable=e=>recordedChunks.push(e.data);
+    mediaRecorder.onstop=async()=>{
+      const blob=new Blob(recordedChunks,{type:'audio/webm'});
+      const url=URL.createObjectURL(blob);
+      const player=document.getElementById('audioPlayer');
+      player.src=url;player.classList.remove('hidden');
+      const ab=await blob.arrayBuffer();
+      audioBuffer=await getCtx().decodeAudioData(ab);
+      document.getElementById('micAnalyzeBtn').disabled=false;
+      drawWaveform();
+    };
+    mediaRecorder.start();
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('micStatus').textContent='録音中… もう一度押すと停止';
+    document.getElementById('micTimer').classList.add('show');
+    timerInterval=setInterval(()=>{
+      recordSeconds++;
+      const m=Math.floor(recordSeconds/60),s=recordSeconds%60;
+      document.getElementById('micTimer').textContent=m+':'+(s<10?'0':'')+s;
+    },1000);
+  }catch(e){alert('マイクへのアクセスが許可されていません');}
 }
-function stopMic(){
-  running=false;
-  if(animId)cancelAnimationFrame(animId);
-  if(source)source.disconnect();
-  if(stream)stream.getTracks().forEach(t=>t.stop());
-  if(audioCtx)audioCtx.close();
-  document.getElementById('startBtn').textContent='🎙️ 開始';
-  document.getElementById('startBtn').classList.remove('active');
-  document.getElementById('statusText').textContent='停止中';
-  document.getElementById('statusText').classList.remove('live');
-}
-function setFftSize(size){
-  fftSize=size;
-  document.querySelectorAll('.fft-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.size)===size));
-  if(analyser)analyser.fftSize=size;
-}
-function updateSmoothing(){
-  const v=parseFloat(document.getElementById('smoothing').value);
-  document.getElementById('smoothVal').textContent=v.toFixed(2);
-  if(analyser)analyser.smoothingTimeConstant=v;
-}
-function switchTab(name){
-  currentTab=name;
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
-    const names=['spectrum','pitch','wave','harmonics'];
-    b.classList.toggle('active',names[i]===name);
-  });
-  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-}
+document.getElementById('micAnalyzeBtn').addEventListener('click',()=>{if(audioBuffer)analyzeAudio();});
 
 // ============================================================
-// ピッチ検出（自己相関＋放物線補間）
+// 波形描画
 // ============================================================
-function detectPitch(buf,sampleRate){
-  const SIZE=buf.length;
-  let rms=0;for(let i=0;i<SIZE;i++)rms+=buf[i]*buf[i];
-  rms=Math.sqrt(rms/SIZE);
-  if(rms<0.03)return{pitch:null,rms};
-  const minLag=Math.floor(sampleRate/400);
-  const maxLag=Math.floor(sampleRate/80);
-  let bestLag=minLag,bestVal=-Infinity;
-  const acCache=new Float32Array(maxLag+2);
-  for(let lag=minLag;lag<=maxLag+1;lag++){
-    let s=0;for(let i=0;i<SIZE-maxLag;i++)s+=buf[i]*buf[i+lag];
-    acCache[lag]=s;
-    if(lag<=maxLag&&s>bestVal){bestVal=s;bestLag=lag;}
+function drawWaveform(){
+  document.getElementById('waveCard').classList.remove('hidden');
+  const dpr=devicePixelRatio||1;
+  // 波形
+  const wc=document.getElementById('waveCanvas');
+  const W=wc.offsetWidth*dpr,H=70*dpr;
+  wc.width=W;wc.height=H;
+  const wctx=wc.getContext('2d');wctx.fillStyle='#080a0e';wctx.fillRect(0,0,W,H);
+  const raw=audioBuffer.getChannelData(0);
+  const fadeLen=Math.floor(audioBuffer.sampleRate*0.2);
+  const data=new Float32Array(raw.length);
+  for(let i=0;i<raw.length;i++) data[i]=raw[i]*(i<fadeLen?i/fadeLen:1);
+  const step=Math.ceil(data.length/W);
+  wctx.strokeStyle='#4ff0b0';wctx.lineWidth=1;wctx.beginPath();
+  for(let i=0;i<W;i++){
+    let mn=1,mx=-1;
+    for(let j=0;j<step;j++){const v=data[i*step+j]||0;if(v<mn)mn=v;if(v>mx)mx=v;}
+    const y1=(1-mx)/2*H,y2=(1-mn)/2*H;
+    if(i===0)wctx.moveTo(i,y1);wctx.lineTo(i,y1);wctx.lineTo(i,y2);
   }
-  if(bestVal<=0)return{pitch:null,rms};
-  // 正規化チェック
-  const acNorm=acCache[0]>0?bestVal/acCache[0]:0;
-  if(acNorm<0.1)return{pitch:null,rms};
-  // 放物線補間
-  const prev=acCache[bestLag-1]||bestVal;
-  const next=acCache[bestLag+1]||bestVal;
-  const denom=prev-2*bestVal+next;
-  const fine=denom!==0?0.5*(prev-next)/(-denom):0;
-  const pitch=sampleRate/(bestLag+fine);
-  // ピリオド（ジッター計算用）
-  const period=(bestLag+fine)/sampleRate;
-  return{pitch,rms,period,acNorm};
-}
-
-// ============================================================
-// ジッター・シマー・HNR
-// ============================================================
-function calcJitter(){
-  if(jitterBuf.length<3)return null;
-  const mean=jitterBuf.reduce((a,b)=>a+b,0)/jitterBuf.length;
-  let sum=0;
-  for(let i=1;i<jitterBuf.length;i++) sum+=Math.abs(jitterBuf[i]-jitterBuf[i-1]);
-  return(sum/(jitterBuf.length-1))/mean*100;// %
-}
-function calcShimmer(){
-  if(shimmerBuf.length<3)return null;
-  let sum=0;
-  for(let i=1;i<shimmerBuf.length;i++) sum+=Math.abs(20*Math.log10(shimmerBuf[i]/shimmerBuf[i-1]));
-  return sum/(shimmerBuf.length-1);// dB
-}
-function calcHNR(buf,period,sampleRate){
-  if(!period)return null;
-  const lag=Math.round(period*sampleRate);
-  if(lag<=0||lag>=buf.length)return null;
-  let signalPower=0,noisePower=0;
-  const len=buf.length-lag;
-  for(let i=0;i<len;i++){
-    const d=buf[i]-buf[i+lag];
-    signalPower+=buf[i]*buf[i];
-    noisePower+=d*d;
+  wctx.stroke();
+  // スペクトル
+  const sc=document.getElementById('specCanvas');
+  sc.width=W;sc.height=H;
+  const sctx=sc.getContext('2d');sctx.fillStyle='#080a0e';sctx.fillRect(0,0,W,H);
+  const N=nextPow2(Math.min(data.length,65536));
+  const padded=new Float32Array(N);
+  for(let i=0;i<Math.min(data.length,N);i++) padded[i]=data[i]*(0.5*(1-Math.cos(2*Math.PI*i/(N-1))));
+  const spec=fftMagnitude(padded);
+  const half=Math.floor(N/2);
+  let specMax=0;for(let b=1;b<half;b++)if(spec[b]>specMax)specMax=spec[b];
+  sctx.strokeStyle='#7eb8ff';sctx.lineWidth=1;sctx.beginPath();
+  for(let i=0;i<W;i++){
+    const b=Math.floor((i/W)*(half-1))+1;
+    const y=H-(spec[b]/specMax)*H*0.9;
+    i===0?sctx.moveTo(i,y):sctx.lineTo(i,y);
   }
-  if(noisePower<=0)return 40;
-  return 10*Math.log10(signalPower/noisePower);
+  sctx.stroke();
 }
 
 // ============================================================
-// スペクトル重心
+// メイン解析
 // ============================================================
-function calcSpectralCentroid(freqData,binHz,bufLen){
-  let num=0,den=0;
-  const maxBin=Math.min(Math.round(8000/binHz),bufLen-1);
-  for(let b=1;b<=maxBin;b++){
-    const amp=Math.pow(10,freqData[b]/20);
-    num+=b*binHz*amp;den+=amp;
+async function analyzeAudio(){
+  document.getElementById('loadingCard').classList.remove('hidden');
+  document.getElementById('resultCard').classList.add('hidden');
+  await new Promise(r=>setTimeout(r,50));
+
+  const raw=audioBuffer.getChannelData(0);
+  const sampleRate=audioBuffer.sampleRate;
+
+  // --- 1. FFT ---
+  const maxSamples=65536;
+  const useLen=Math.min(raw.length,maxSamples);
+  const N=nextPow2(useLen);
+  const padded=new Float32Array(N);
+  const fadeLen=Math.floor(sampleRate*0.2);
+  for(let i=0;i<useLen;i++){
+    const fade=i<fadeLen?i/fadeLen:1;
+    const w=0.5*(1-Math.cos(2*Math.PI*i/(useLen-1)));
+    padded[i]=raw[i]*w*fade;
   }
-  return den>0?num/den:0;
-}
+  const spectrum=fftMagnitude(padded);
+  const half=Math.floor(N/2);
+  const binHz=sampleRate/N;
 
-// ============================================================
-// 話速（音節推定）
-// ============================================================
-function updateSpeechRate(isVoiced,now){
-  if(isVoiced&&!prevVoiced){
-    // 有声区間開始 = 音節カウント
-    if(now-lastSyllableTime>80){// 80ms以上間隔
-      syllableCount++;
-      lastSyllableTime=now;
+  // --- 2. フレームごと自己相関→中央値ピッチ ---
+  const frameSize=4096,hopSize=512;
+  const minLag=Math.floor(sampleRate/400),maxLag=Math.floor(sampleRate/80);
+  const pitchValues=[];
+  const rmsValues=[];
+  for(let offset=0;offset+frameSize<raw.length;offset+=hopSize){
+    const frame=raw.slice(offset,offset+frameSize);
+    let rms=0;for(let i=0;i<frameSize;i++)rms+=frame[i]*frame[i];
+    rms=Math.sqrt(rms/frameSize);if(rms<0.001)continue;
+    const ac=new Float32Array(maxLag+1);
+    for(let lag=minLag;lag<=maxLag;lag++){
+      let s=0;for(let i=0;i<frameSize-maxLag;i++)s+=frame[i]*frame[i+lag];ac[lag]=s;
     }
+    let bestLag=minLag,bestVal=ac[minLag];
+    for(let lag=minLag+1;lag<=maxLag;lag++){if(ac[lag]>bestVal){bestVal=ac[lag];bestLag=lag;}}
+    if(bestVal>0){pitchValues.push(sampleRate/bestLag);rmsValues.push(rms);}
   }
-  prevVoiced=isVoiced;
-  // 直近3秒の話速を計算
-  speechRateHistory.push({syllableCount,time:now});
-  if(speechRateHistory.length>1){
-    const old=speechRateHistory[0];
-    const dt=(now-old.time)/1000;
-    if(dt>2){
-      const rate=(syllableCount-old.syllableCount)/dt;
-      speechRateHistory=speechRateHistory.filter(e=>now-e.time<3000);
-      return Math.max(0,rate);
-    }
+  if(pitchValues.length<3){
+    document.getElementById('loadingCard').classList.add('hidden');
+    alert('有声区間が短すぎます。5秒以上の発話でお試しください。');return;
   }
-  return null;
-}
-
-// ============================================================
-// メイン描画ループ
-// ============================================================
-function draw(){
-  if(!running)return;
-  animId=requestAnimationFrame(draw);
-  const bufLen=analyser.frequencyBinCount;
-  const freqData=new Float32Array(bufLen);
-  const timeData=new Float32Array(analyser.fftSize);
-  analyser.getFloatFrequencyData(freqData);
-  analyser.getFloatTimeDomainData(timeData);
-  const sampleRate=audioCtx.sampleRate;
-  const binHz=sampleRate/analyser.fftSize;
-  const now=performance.now();
-
-  // ピッチ検出
-  const det=detectPitch(timeData,sampleRate);
-  const isVoiced=det.pitch!==null;
-
-  if(isVoiced){
-    pitchHistory.push(det.pitch);
-    if(pitchHistory.length>MAX_HIST)pitchHistory.shift();
-    rmsHistory.push(det.rms);
-    if(rmsHistory.length>MAX_HIST)rmsHistory.shift();
-    // ジッター用バッファ
-    if(det.period){jitterBuf.push(det.period);if(jitterBuf.length>MAX_JS_BUF)jitterBuf.shift();}
-    shimmerBuf.push(det.rms);if(shimmerBuf.length>MAX_JS_BUF)shimmerBuf.shift();
-    // ピッチトレース
-    pitchTraceHistory.push({pitch:det.pitch,voiced:true,time:now});
-  } else {
-    if(pitchHistory.length>0)pitchHistory.shift();
-    pitchTraceHistory.push({pitch:null,voiced:false,time:now});
-  }
-  if(pitchTraceHistory.length>MAX_TRACE)pitchTraceHistory.shift();
 
   // 中央値ピッチ
-  const sorted=[...pitchHistory].sort((a,b)=>a-b);
-  const medPitch=sorted.length>3?sorted[Math.floor(sorted.length/2)]:null;
+  const sortedP=[...pitchValues].sort((a,b)=>a-b);
+  const medianPitch=sortedP[Math.floor(sortedP.length/2)];
 
-  // 話速
-  const speechRate=updateSpeechRate(isVoiced,now);
+  // FFTスペクトル補正＋放物線補間
+  const sLo=Math.max(Math.round(80/binHz),Math.round(medianPitch*0.85/binHz));
+  const sHi=Math.min(Math.round(medianPitch*1.15/binHz),half-1);
+  let peakBin=sLo,peakAmp=0;
+  for(let b=sLo;b<=sHi;b++){if(spectrum[b]>peakAmp){peakAmp=spectrum[b];peakBin=b;}}
+  const pp=peakBin>0?spectrum[peakBin-1]:0;
+  const pn=peakBin<half-1?spectrum[peakBin+1]:0;
+  const pd=(pp-2*peakAmp+pn);
+  const refinedPitch=(peakBin+(pd!==0?0.5*(pp-pn)/(-pd):0))*binHz;
 
-  // 声量
-  const rmsDb=det.rms>0?20*Math.log10(det.rms):-100;
+  // --- 3. 倍音エネルギー ---
+  const harmonicEnergies=[];
+  for(let h=1;h<=12;h++){
+    const centerHz=refinedPitch*h;
+    const loHz=centerHz*0.88,hiHz=centerHz*1.12;
+    const lo=Math.floor(loHz/binHz),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
+    let energy=0;
+    for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
+    harmonicEnergies.push(Math.sqrt(energy));
+  }
+  const fundamentalEnergy=harmonicEnergies[0]||1;
+  const harmonicRatios=harmonicEnergies.map(e=>e/fundamentalEnergy);
 
-  // スペクトル重心
-  const centroid=calcSpectralCentroid(freqData,binHz,bufLen);
+  // --- 4. Singer's Formant ---
+  const sfLo=Math.floor(2000/binHz),sfHi=Math.min(Math.ceil(4000/binHz),half-1);
+  const totalLo=Math.floor(200/binHz),totalHi=Math.min(Math.ceil(8000/binHz),half-1);
+  let sfEnergy=0,totalEnergy=0;
+  for(let b=sfLo;b<=sfHi;b++) sfEnergy+=spectrum[b]*spectrum[b];
+  for(let b=totalLo;b<=totalHi;b++) totalEnergy+=spectrum[b]*spectrum[b];
+  const sfRatio=totalEnergy>0?sfEnergy/totalEnergy:0;
 
-  // ジッター・シマー・HNR
-  const jitter=calcJitter();
-  const shimmer=calcShimmer();
-  const hnr=isVoiced&&det.period?calcHNR(timeData,det.period,sampleRate):null;
+  // --- 5. 倍音豊かさ ---
+  const richRatios=harmonicRatios.slice(1,5);
+  const harmonicRichness=richRatios.reduce((a,b)=>a+b,0)/richRatios.length;
 
-  // 抑揚（ピッチ変動幅）
-  let intonation=0;
-  if(pitchHistory.length>5){
-    const semitones=pitchHistory.map(p=>freqToSemitone(p));
-    intonation=Math.max(...semitones)-Math.min(...semitones);
+  // --- 6. 1/fゆらぎ ---
+  const N2=nextPow2(pitchValues.length);
+  const padded2=new Float32Array(N2);
+  for(let i=0;i<pitchValues.length;i++) padded2[i]=pitchValues[i]-refinedPitch;
+  const spec2=fftMagnitude(padded2);
+  const half2=Math.floor(N2/2);
+  const logFreqs=[],logPowers=[];
+  for(let i=1;i<half2;i++){const p=spec2[i]*spec2[i];if(p>0){logFreqs.push(Math.log10(i));logPowers.push(Math.log10(p));}}
+  let flickerSlope=0,flickerScore=50;
+  if(logFreqs.length>4){
+    const lr=linReg(logFreqs,logPowers);
+    flickerSlope=lr.slope;
+    const dist=Math.abs(flickerSlope+1.0);
+    flickerScore=Math.max(0,Math.min(100,Math.round(100-dist*55)));
   }
 
-  // UI更新
-  updatePitchDisplay(medPitch);
-  updateVolumeDisplay(rmsDb);
-  updateMetrics({jitter,shimmer,hnr,intonation,speechRate,centroid});
+  // --- 7. Jitter（ピッチ周期変動）---
+  // ピッチ値から周期列を作成
+  const periods=pitchValues.map(p=>1/p);
+  let jitterSum=0;
+  for(let i=1;i<periods.length;i++) jitterSum+=Math.abs(periods[i]-periods[i-1]);
+  const jitter=periods.length>1?(jitterSum/(periods.length-1))/(periods.reduce((a,b)=>a+b,0)/periods.length)*100:0;
+  // ジッタースコア: <0.5%→100, 1%→80, 2%→50, 3%→20, >4%→0
+  const jitterScore=Math.max(0,Math.min(100,Math.round(100-jitter*25)));
 
-  // グラフ描画
-  if(currentTab==='spectrum') drawSpectrum(freqData,binHz,bufLen,medPitch);
-  else if(currentTab==='pitch') drawPitchTrace();
-  else if(currentTab==='wave') drawWave(timeData);
-  else if(currentTab==='harmonics'&&medPitch) updateHarmonicList(freqData,binHz,bufLen,medPitch);
+  // --- 8. Shimmer（RMS振幅変動）---
+  let shimmerSum=0;
+  for(let i=1;i<rmsValues.length;i++) shimmerSum+=Math.abs(rmsValues[i]-rmsValues[i-1]);
+  const shimmerMean=rmsValues.reduce((a,b)=>a+b,0)/rmsValues.length;
+  const shimmer=shimmerMean>0?(shimmerSum/(rmsValues.length-1))/shimmerMean*100:0;
+  const shimmerScore=Math.max(0,Math.min(100,Math.round(100-shimmer*8)));
+
+  // 安定性スコア（JitterとShimmerの平均）
+  const stabilityScore=Math.round((jitterScore+shimmerScore)/2);
+
+  // --- 9. HNR（調和雑音比）---
+  // 自己相関法でHNR推定
+  let hnrDb=0;
+  {
+    const lagSamples=Math.round(sampleRate/refinedPitch);
+    const windowLen=Math.min(raw.length, sampleRate*2); // 最大2秒
+    let acLag=0,ac0=0;
+    for(let i=0;i<windowLen-lagSamples;i++){
+      ac0+=raw[i]*raw[i];
+      acLag+=raw[i]*raw[i+lagSamples];
+    }
+    if(ac0>0&&acLag>0){
+      const r=Math.min(0.9999,Math.max(0.0001,acLag/ac0));
+      hnrDb=10*Math.log10(r/(1-r));
+    }
+  }
+  // HNRスコア: >20dB→100, 10dB→70, 0dB→40, <-10dB→0
+  const hnrScore=Math.max(0,Math.min(100,Math.round((hnrDb+10)/30*60+40)));
+
+  // --- 10. 抑揚の幅（半音数）---
+  // 有効ピッチ値の上位下位を除外して範囲計算
+  const trimmedP=[...sortedP].slice(Math.floor(sortedP.length*0.1),Math.floor(sortedP.length*0.9));
+  const intonationSemitones=trimmedP.length>1?12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]):0;
+
+  // --- 11. スコア計算（6軸）---
+  const pitchScore=Math.max(0,Math.min(100,Math.round(
+    refinedPitch<=120?100:
+    refinedPitch<=220?100-(refinedPitch-120)/100*35:
+    refinedPitch<=350?65-(refinedPitch-220)/130*30:
+    35-(refinedPitch-350)/150*35
+  )));
+  const richScore=Math.max(0,Math.min(100,Math.round(harmonicRichness*200)));
+  const formantScore=Math.max(0,Math.min(100,Math.round(sfRatio*500)));
+  const totalScore=Math.round(
+    pitchScore*0.20+
+    richScore*0.20+
+    formantScore*0.15+
+    flickerScore*0.15+
+    stabilityScore*0.15+
+    hnrScore*0.15
+  );
+
+  // --- 副倍音検出 ---
+  const subHarmonics=[];
+  for(let d=2;d<=4;d++){
+    const subHz=refinedPitch/d;
+    if(subHz<20)break;
+    const loHz=subHz*0.85,hiHz=subHz*1.15;
+    const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
+    let energy=0;
+    for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
+    const amp=Math.sqrt(energy);
+    const ratio=amp/(harmonicEnergies[0]||1);
+    subHarmonics.push({hz:subHz,ratio,detected:ratio>0.05,divisor:d});
+  }
+
+  // --- 判定 ---
+  let vClass,vIcon,vTitle,vDesc;
+  if(totalScore>=80){vClass='good';vIcon='🎙️';vTitle='いい声認定！';vDesc='声の全指標が高水準です。低音・倍音・安定性・クリアさが揃った、本格的ないい声の持ち主です。';}
+  else if(totalScore>=65){vClass='good';vIcon='✨';vTitle='かなりいい声！';vDesc='ほとんどの指標が優秀です。あと一歩でトップクラスの声になれます。';}
+  else if(totalScore>=50){vClass='warn';vIcon='🎶';vTitle='惜しい！もう一息';vDesc='声の素地はあります。弱い指標を重点的にトレーニングしましょう。';}
+  else if(totalScore>=30){vClass='warn';vIcon='📊';vTitle='伸びしろあり';vDesc='いくつかの指標で改善の余地があります。発声練習で大きく伸びる可能性があります。';}
+  else{vClass='bad';vIcon='🔈';vTitle='まだまだこれから';vDesc='録音環境の見直しと発声練習を始めましょう。継続的なトレーニングで改善できます。';}
+
+  // --- アドバイス生成 ---
+  const advices=[];
+  if(pitchScore<60) advices.push('基音が高め：腹式呼吸を意識して、胸に響かせるチェストボイスを鍛えましょう');
+  if(richScore<60) advices.push('倍音が少なめ：口腔内を広く保ち、口角を少し上げて発声すると倍音が豊かになります');
+  if(formantScore<60) advices.push('声のハリ不足：ハミング練習で2〜4kHz帯の倍音を強化できます');
+  if(stabilityScore<60) advices.push('声の安定性：腹筋を使った安定した息の流れを意識し、声の揺れを減らしましょう');
+  if(hnrScore<60) advices.push('声のクリアさ：喉をリラックスさせ、雑音の少ないクリアな発声を心がけましょう');
+  if(Math.abs(flickerSlope+1.0)>0.4) advices.push('ゆらぎの調整：単調すぎず、過剰に揺れすぎない自然な抑揚を意識してみましょう');
+  if(advices.length===0) advices.push('全指標が良好です！現状を維持しながら、さらなる表現の幅を広げていきましょう');
+  document.getElementById('adviceText').textContent=advices.join('。\n');
+
+  // --- 結果保存 ---
+  lastResult={
+    totalScore,pitchScore,richScore,formantScore,flickerScore,stabilityScore,hnrScore,
+    flickerSlope,meanPitch:refinedPitch,harmonicRatios,sfRatio,harmonicRichness,
+    jitter,shimmer,hnrDb,intonationSemitones,
+    vClass,vTitle,vIcon,
+    frames:pitchValues.length,spectrum,half,binHz,sampleRate,subHarmonics
+  };
+
+  document.getElementById('loadingCard').classList.add('hidden');
+  displayResults(lastResult);
 }
 
 // ============================================================
-// UI更新
+// 結果表示
 // ============================================================
-function updatePitchDisplay(pitch){
-  const el=document.getElementById('pitchHz');
-  const commentEl=document.getElementById('pitchComment');
-  if(pitch){
-    el.textContent=pitch.toFixed(1);
-    document.getElementById('pitchNote').textContent='('+freqToNote(pitch)+')';
-    if(pitch<110){el.style.color='#4ff0b0';commentEl.textContent='男性・極めて低い域';}
-    else if(pitch<165){el.style.color='#7eb8ff';commentEl.textContent='男性・低め〜平均';}
-    else if(pitch<260){el.style.color='#ffd166';commentEl.textContent='女性・低め〜平均';}
-    else{el.style.color='#ff6b6b';commentEl.textContent='女性・高め';}
-  } else {
-    el.textContent='—';el.style.color='var(--accent)';
-    document.getElementById('pitchNote').textContent='';
-    commentEl.textContent='—';
-  }
-}
+function displayResults(r){
+  // 判定
+  document.getElementById('verdictBox').className='verdict '+r.vClass;
+  document.getElementById('verdictIcon').textContent=r.vIcon;
+  document.getElementById('verdictTitle').textContent=r.vTitle;
+  document.getElementById('verdictDesc').textContent=r.totalScore+'点 — '+r.vDesc;
 
-function updateVolumeDisplay(db){
-  const el=document.getElementById('volumeDb');
-  const bar=document.getElementById('volumeBar');
-  const comment=document.getElementById('volumeComment');
-  if(db>-60){
-    el.textContent=db.toFixed(1);
-    const pct=Math.max(0,Math.min(100,(db+60)/50*100));
-    bar.style.width=pct+'%';
-    if(db>-20){el.style.color='var(--accent2)';comment.textContent='大きい';}
-    else if(db>-35){el.style.color='var(--accent)';comment.textContent='適切';}
-    else if(db>-50){el.style.color='var(--accent4)';comment.textContent='やや小さい';}
-    else{el.style.color='var(--text-dim)';comment.textContent='小さい';}
-  } else {
-    el.textContent='—';bar.style.width='0%';comment.textContent='無音';
-  }
-}
+  // スコアゲージ
+  document.getElementById('scoreLabel').textContent=r.totalScore+'点';
+  setTimeout(()=>document.getElementById('scoreMarker').style.left=r.totalScore+'%',100);
 
-function colorClass(val,good,warn){
-  return val<=good?'good':val<=warn?'warn':'bad';
-}
-function barColor(cls){
-  return cls==='good'?'var(--accent)':cls==='warn'?'var(--accent4)':'var(--accent2)';
-}
+  const cc=v=>v>=70?'good':v>=40?'warn':'bad';
+  const flickerCC=s=>{const d=Math.abs(s+1.0);return d<=0.2?'good':d<=0.4?'warn':'bad';};
 
-function updateMetrics({jitter,shimmer,hnr,intonation,speechRate,centroid}){
-  // ジッター（%）: <1% good, <2% warn, else bad
-  if(jitter!==null){
-    const cls=colorClass(jitter,1,2);
-    setMetric('Jitter',jitter.toFixed(2)+'%',cls,Math.max(0,100-jitter*20));
-  }
-  // シマー（dB）: <0.5 good, <1.0 warn
-  if(shimmer!==null){
-    const cls=colorClass(shimmer,0.5,1.0);
-    setMetric('Shimmer',shimmer.toFixed(2)+'dB',cls,Math.max(0,100-shimmer*50));
-  }
-  // HNR（dB）: >20 good, >10 warn
-  if(hnr!==null){
-    const cls=hnr>20?'good':hnr>10?'warn':'bad';
-    setMetric('HNR',hnr.toFixed(1)+'dB',cls,Math.min(100,hnr*2.5));
-  }
-  // 抑揚（半音）: 3〜8が理想
-  if(intonation>0){
-    const cls=intonation>=2&&intonation<=10?'good':intonation>=1?'warn':'bad';
-    setMetric('Intonation',intonation.toFixed(1)+'st',cls,Math.min(100,intonation*8));
-  }
-  // 話速（音節/秒）: 4〜7が理想
-  if(speechRate!==null&&speechRate>0){
-    const cls=speechRate>=3&&speechRate<=8?'good':speechRate>=2?'warn':'bad';
-    setMetric('SpeechRate',speechRate.toFixed(1)+'/s',cls,Math.min(100,speechRate*10));
-  }
-  // スペクトル重心（Hz）
-  if(centroid>0){
-    const cls=centroid<2000?'good':centroid<3500?'warn':'bad';
-    const lbl=centroid>=1000?(centroid/1000).toFixed(2)+'k':Math.round(centroid)+'';
-    setMetric('Centroid',lbl+'Hz',cls,Math.min(100,Math.max(0,(4000-centroid)/40)));
-  }
-}
+  // サブスコア
+  const subs=[
+    ['Pitch',r.pitchScore,'var(--accent)',cc],
+    ['Rich',r.richScore,'var(--accent3)',cc],
+    ['Formant',r.formantScore,'var(--accent4)',cc],
+    ['Flicker',r.flickerScore,null,(v)=>flickerCC(r.flickerSlope)],
+    ['Stability',r.stabilityScore,'var(--accent5)',cc],
+    ['HNR',r.hnrScore,'var(--accent3)',cc],
+  ];
+  subs.forEach(([k,score,color,fn])=>{
+    const cls=fn(score);
+    const el=document.getElementById('sub'+k);
+    el.textContent=score+'点';el.className='sub-score-val '+cls;
+    document.getElementById('sub'+k+'Bar').style.width=score+'%';
+    if(color){
+      document.getElementById('sub'+k+'Bar').style.background=
+        cls==='good'?color:cls==='warn'?'var(--accent4)':'var(--accent2)';
+    } else {
+      document.getElementById('sub'+k+'Bar').style.background=
+        cls==='good'?'var(--accent)':cls==='warn'?'var(--accent4)':'var(--accent2)';
+    }
+  });
 
-function setMetric(name,val,cls,barPct){
-  const el=document.getElementById('met'+name);
-  const bar=document.getElementById('bar'+name);
-  if(el){el.textContent=val;el.className='metric-value '+cls;}
-  if(bar){bar.style.width=barPct+'%';bar.style.background=barColor(cls);}
+  // メトリクス
+  const pitch=r.meanPitch;
+  let pitchComment='';
+  if(pitch<85)pitchComment='男性でも極めて低い域';
+  else if(pitch<110)pitchComment='男性・低め';
+  else if(pitch<150)pitchComment='男性・平均的';
+  else if(pitch<165)pitchComment='男性/女性 境界域';
+  else if(pitch<210)pitchComment='女性・低め';
+  else if(pitch<280)pitchComment='女性・平均的';
+  else pitchComment='女性・高め';
+  document.getElementById('metPitch').textContent=Math.round(r.meanPitch)+' Hz';
+  document.getElementById('metPitch').className='metric-value '+cc(r.pitchScore);
+  document.getElementById('metPitchSub').textContent='Hz — '+pitchComment;
+  document.getElementById('metHRatio').textContent=(r.harmonicRichness*100).toFixed(1)+'%';
+  document.getElementById('metHRatio').className='metric-value '+cc(r.richScore);
+  document.getElementById('metFormant').textContent=(r.sfRatio*100).toFixed(1)+'%';
+  document.getElementById('metFormant').className='metric-value '+cc(r.formantScore);
+  document.getElementById('metSlope').textContent=r.flickerSlope.toFixed(2);
+  document.getElementById('metSlope').className='metric-value '+flickerCC(r.flickerSlope);
+  // 新指標
+  document.getElementById('metJitter').textContent=r.jitter.toFixed(2)+'%';
+  document.getElementById('metJitter').className='metric-value '+(r.jitter<1?'good':r.jitter<2?'warn':'bad');
+  document.getElementById('metShimmer').textContent=r.shimmer.toFixed(1)+'%';
+  document.getElementById('metShimmer').className='metric-value '+(r.shimmer<5?'good':r.shimmer<10?'warn':'bad');
+  document.getElementById('metHNR').textContent=r.hnrDb.toFixed(1)+' dB';
+  document.getElementById('metHNR').className='metric-value '+(r.hnrDb>15?'good':r.hnrDb>5?'warn':'bad');
+  document.getElementById('metIntonation').textContent=r.intonationSemitones.toFixed(1)+' st';
+  document.getElementById('metIntonation').className='metric-value '+(r.intonationSemitones>2&&r.intonationSemitones<12?'good':r.intonationSemitones>1?'warn':'bad');
+
+  // レーダーチャート
+  requestAnimationFrame(()=>drawRadar(r));
+
+  // 倍音バー
+  buildHarmonicBars(r.harmonicRatios);
+
+  // 倍音スペクトル
+  requestAnimationFrame(()=>drawHarmonicCanvas(r));
+
+  document.getElementById('resultCard').classList.remove('hidden');
+  document.getElementById('resultCard').scrollIntoView({behavior:'smooth'});
 }
 
 // ============================================================
-// 波形
+// レーダーチャート
 // ============================================================
-function drawWave(timeData){
-  const canvas=document.getElementById('waveCanvas');
+function drawRadar(r){
+  const canvas=document.getElementById('radarCanvas');
   const dpr=devicePixelRatio||1;
-  const W=canvas.offsetWidth*dpr,H=100*dpr;
-  if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
+  const SIZE=220*dpr;
+  canvas.width=SIZE;canvas.height=SIZE;
   const ctx=canvas.getContext('2d');
-  ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
-  // 中心線
-  ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();
-  // 波形
-  ctx.strokeStyle='rgba(79,240,176,0.8)';ctx.lineWidth=1.5*dpr;
+  ctx.clearRect(0,0,SIZE,SIZE);
+  const cx=SIZE/2,cy=SIZE/2,maxR=SIZE*0.38;
+  const labels=['基音','倍音','ハリ','ゆらぎ','安定性','クリアさ'];
+  const scores=[r.pitchScore,r.richScore,r.formantScore,r.flickerScore,r.stabilityScore,r.hnrScore];
+  const n=6;
+  const angle=i=>-Math.PI/2+(2*Math.PI/n)*i;
+
+  // グリッド
+  [0.25,0.5,0.75,1.0].forEach(ratio=>{
+    ctx.beginPath();
+    for(let i=0;i<n;i++){
+      const a=angle(i);
+      const x=cx+Math.cos(a)*maxR*ratio;
+      const y=cy+Math.sin(a)*maxR*ratio;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle=ratio===1?'#2a3040':'#1e2330';ctx.lineWidth=1;ctx.stroke();
+  });
+
+  // スポーク
+  for(let i=0;i<n;i++){
+    const a=angle(i);
+    ctx.beginPath();ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.cos(a)*maxR,cy+Math.sin(a)*maxR);
+    ctx.strokeStyle='#1e2330';ctx.lineWidth=1;ctx.stroke();
+  }
+
+  // データ
   ctx.beginPath();
-  for(let i=0;i<timeData.length;i++){
-    const x=(i/timeData.length)*W;
-    const y=H/2+timeData[i]*H*0.45;
+  scores.forEach((s,i)=>{
+    const a=angle(i);
+    const r2=(s/100)*maxR;
+    const x=cx+Math.cos(a)*r2,y=cy+Math.sin(a)*r2;
     i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-  }
-  ctx.stroke();
+  });
+  ctx.closePath();
+  ctx.fillStyle='rgba(79,240,176,0.15)';ctx.fill();
+  ctx.strokeStyle='rgba(79,240,176,0.8)';ctx.lineWidth=2;ctx.stroke();
+
+  // 点
+  scores.forEach((s,i)=>{
+    const a=angle(i);
+    const r2=(s/100)*maxR;
+    ctx.beginPath();ctx.arc(cx+Math.cos(a)*r2,cy+Math.sin(a)*r2,3*dpr,0,Math.PI*2);
+    ctx.fillStyle='#4ff0b0';ctx.fill();
+  });
+
+  // ラベル
+  const colors=['var(--accent)','var(--accent3)','var(--accent4)','var(--accent)','var(--accent5)','var(--accent3)'];
+  labels.forEach((lbl,i)=>{
+    const a=angle(i);
+    const r2=maxR+16*dpr;
+    const x=cx+Math.cos(a)*r2,y=cy+Math.sin(a)*r2;
+    ctx.font=`bold ${9*dpr}px 'Space Mono',monospace`;
+    ctx.textAlign=Math.cos(a)>0.1?'left':Math.cos(a)<-0.1?'right':'center';
+    ctx.textBaseline=Math.sin(a)>0.1?'top':Math.sin(a)<-0.1?'bottom':'middle';
+    ctx.fillStyle=['#4ff0b0','#7eb8ff','#ffd166','#4ff0b0','#c084fc','#7eb8ff'][i];
+    ctx.fillText(lbl,x,y);
+  });
 }
 
 // ============================================================
-// ピッチトレース
+// 倍音バー
 // ============================================================
-function drawPitchTrace(){
-  const canvas=document.getElementById('pitchCanvas');
-  const dpr=devicePixelRatio||1;
-  const W=canvas.offsetWidth*dpr,H=180*dpr;
-  if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
+const HARMONIC_COLORS=['#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff'];
+function buildHarmonicBars(ratios){
+  const maxRatio=Math.max(...ratios,0.01);
+  const chart=document.getElementById('harmonicChart');
+  chart.innerHTML='';
+  ratios.forEach((r,h)=>{
+    const pct=Math.min(100,(r/maxRatio)*100);
+    const dbVal=r>0?Math.max(-40,20*Math.log10(r)).toFixed(1):'-∞';
+    const row=document.createElement('div');
+    row.className='harmonic-bar-row';
+    row.innerHTML=`<span class="hbar-label">${h===0?'基音':'×'+(h+1)}</span>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:${HARMONIC_COLORS[h]}"></div></div>
+      <span class="hbar-val" style="color:${HARMONIC_COLORS[h]}">${dbVal} dB</span>`;
+    chart.appendChild(row);
+  });
+}
+
+// ============================================================
+// 倍音スペクトル Canvas
+// ============================================================
+function drawHarmonicCanvas(r){
+  const canvas=document.getElementById('harmonicCanvas');
+  const W=canvas.offsetWidth*devicePixelRatio,H=200*devicePixelRatio;
+  canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
-
-  const pad={l:38*dpr,r:10*dpr,t:10*dpr,b:20*dpr};
+  const pad={l:40*devicePixelRatio,r:12*devicePixelRatio,t:12*devicePixelRatio,b:24*devicePixelRatio};
   const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
-
-  const minHz=60,maxHz=400;
-  const toY=hz=>pad.t+ph-(hz-minHz)/(maxHz-minHz)*ph;
-
-  // グリッド
-  [80,100,120,150,200,250,300].forEach(hz=>{
-    const y=toY(hz);
-    if(y<pad.t||y>pad.t+ph)return;
-    ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();
-    ctx.fillStyle='#3a4050';ctx.font=`${7*dpr}px monospace`;ctx.textAlign='right';
-    ctx.fillText(hz,pad.l-4,y+3);
+  const minFreqShow=50,maxFreqShow=Math.min(r.meanPitch*13,8000);
+  const minBin=Math.max(1,Math.floor(minFreqShow/r.binHz));
+  const maxBin=Math.min(Math.ceil(maxFreqShow/r.binHz),r.half-1);
+  const freqRange=maxFreqShow-minFreqShow;
+  let specMax=0;for(let b=minBin;b<=maxBin;b++)if(r.spectrum[b]>specMax)specMax=r.spectrum[b];
+  if(specMax===0)return;
+  const toX=freq=>pad.l+((freq-minFreqShow)/freqRange)*pw;
+  ctx.strokeStyle='rgba(30,35,48,0.8)';ctx.lineWidth=1;
+  for(let i=1;i<=3;i++){const y=pad.t+ph/4*i;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();}
+  let tickStep=100;if(maxFreqShow>3000)tickStep=500;if(maxFreqShow>6000)tickStep=1000;
+  ctx.fillStyle='#3a4050';ctx.font=`${8*devicePixelRatio}px monospace`;ctx.textAlign='center';
+  ctx.fillText('50',toX(50),pad.t+ph+12*devicePixelRatio);
+  const freqTicks=[];
+  for(let f=tickStep;f<maxFreqShow;f+=tickStep){if(f>=minFreqShow)freqTicks.push(f);}
+  ctx.strokeStyle='rgba(30,35,48,0.6)';ctx.lineWidth=1;
+  freqTicks.forEach(f=>{
+    const x=toX(f);ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ph);ctx.stroke();
+    ctx.fillStyle='#3a4050';ctx.font=`${8*devicePixelRatio}px monospace`;ctx.textAlign='center';
+    ctx.fillText(f>=1000?(f/1000).toFixed(f%1000===0?0:1)+'k':f+'',x,pad.t+ph+12*devicePixelRatio);
   });
-
-  // トレース
-  const pts=pitchTraceHistory;
-  if(pts.length<2)return;
-  ctx.strokeStyle='var(--accent)';ctx.lineWidth=2*dpr;
-  ctx.beginPath();
+  ctx.beginPath();ctx.strokeStyle='rgba(79,240,176,0.5)';ctx.lineWidth=1.2*devicePixelRatio;
   let first=true;
-  pts.forEach((p,i)=>{
-    const x=pad.l+(i/MAX_TRACE)*pw;
-    if(!p.voiced){first=true;return;}
-    const y=toY(Math.max(minHz,Math.min(maxHz,p.pitch)));
+  for(let b=minBin;b<=maxBin;b++){
+    const freq=b*r.binHz,x=toX(freq),y=pad.t+ph-(r.spectrum[b]/specMax)*ph*0.95;
     if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);
-  });
+  }
   ctx.stroke();
-
-  // 現在値マーカー
-  const last=pts.filter(p=>p.voiced).slice(-1)[0];
-  if(last){
-    const x=pad.l+((pts.lastIndexOf(last))/MAX_TRACE)*pw;
-    const y=toY(Math.max(minHz,Math.min(maxHz,last.pitch)));
-    ctx.beginPath();ctx.arc(x,y,4*dpr,0,Math.PI*2);
-    ctx.fillStyle='var(--accent)';ctx.fill();
+  ctx.lineTo(toX(maxBin*r.binHz),pad.t+ph);ctx.lineTo(toX(minFreqShow),pad.t+ph);ctx.closePath();
+  ctx.fillStyle='rgba(79,240,176,0.06)';ctx.fill();
+  for(let h=0;h<12;h++){
+    const centerHz=r.meanPitch*(h+1);
+    if(centerHz>maxFreqShow||centerHz<minFreqShow)continue;
+    const loHz=centerHz*0.92,hiHz=centerHz*1.08;
+    const loBin=Math.max(minBin,Math.round(loHz/r.binHz));
+    const hiBin=Math.min(Math.round(hiHz/r.binHz),r.half-1);
+    let peakBin=loBin,peakAmp=0;
+    for(let b=loBin;b<=hiBin;b++){if(r.spectrum[b]>peakAmp){peakAmp=r.spectrum[b];peakBin=b;}}
+    const peakFreq=peakBin*r.binHz;
+    if(peakFreq<minFreqShow||peakFreq>maxFreqShow)continue;
+    const x=toX(peakFreq),y=pad.t+ph-(peakAmp/specMax)*ph*0.95;
+    ctx.strokeStyle=HARMONIC_COLORS[h]+'99';ctx.lineWidth=1.5*devicePixelRatio;ctx.setLineDash([3*devicePixelRatio,3*devicePixelRatio]);
+    ctx.beginPath();ctx.moveTo(x,pad.t+ph);ctx.lineTo(x,y+6*devicePixelRatio);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.arc(x,y,5*devicePixelRatio,0,Math.PI*2);ctx.fillStyle=HARMONIC_COLORS[h];ctx.fill();
+    ctx.fillStyle=HARMONIC_COLORS[h];ctx.font=`bold ${10*devicePixelRatio}px monospace`;ctx.textAlign='center';
+    ctx.fillText(h+1,x,y-18*devicePixelRatio);
+    ctx.fillStyle=HARMONIC_COLORS[h]+'cc';ctx.font=`${9*devicePixelRatio}px monospace`;
+    ctx.fillText((peakFreq>=1000?(peakFreq/1000).toFixed(1)+'k':Math.round(peakFreq))+'Hz',x,y-7*devicePixelRatio);
   }
+  if(r.subHarmonics){
+    r.subHarmonics.forEach(sh=>{
+      if(!sh.detected||sh.hz<minFreqShow||sh.hz>maxFreqShow)return;
+      const loHz=sh.hz*0.85,hiHz=sh.hz*1.15;
+      const loBin=Math.max(1,Math.round(loHz/r.binHz));
+      const hiBin=Math.min(Math.round(hiHz/r.binHz),r.half-1);
+      let peakBin=loBin,peakAmp=0;
+      for(let b=loBin;b<=hiBin;b++){if(r.spectrum[b]>peakAmp){peakAmp=r.spectrum[b];peakBin=b;}}
+      const peakFreq=peakBin*r.binHz;
+      const x=toX(peakFreq),y=pad.t+ph-(peakAmp/specMax)*ph*0.95;
+      const subColor='#ffa040';
+      ctx.strokeStyle=subColor+'88';ctx.lineWidth=1.5*devicePixelRatio;ctx.setLineDash([2*devicePixelRatio,4*devicePixelRatio]);
+      ctx.beginPath();ctx.moveTo(x,pad.t+ph);ctx.lineTo(x,y+8*devicePixelRatio);ctx.stroke();ctx.setLineDash([]);
+      const ds=5*devicePixelRatio;
+      ctx.beginPath();ctx.moveTo(x,y-ds);ctx.lineTo(x+ds,y);ctx.lineTo(x,y+ds);ctx.lineTo(x-ds,y);ctx.closePath();
+      ctx.fillStyle=subColor;ctx.fill();
+      ctx.fillStyle=subColor;ctx.font=`bold ${8*devicePixelRatio}px monospace`;ctx.textAlign='center';
+      ctx.fillText('÷'+sh.divisor,x,y-14*devicePixelRatio);
+    });
+  }
+  ctx.fillStyle='#3a4050';ctx.font=`${8.5*devicePixelRatio}px monospace`;ctx.textAlign='left';
+  ctx.fillText('Hz',pad.l,pad.t+ph+12*devicePixelRatio);
 }
 
 // ============================================================
-// スペクトル
+// 画像保存
 // ============================================================
-const COLORS=['#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff'];
-function drawSpectrum(freqData,binHz,bufLen,pitch){
-  const canvas=document.getElementById('specCanvas');
-  const dpr=devicePixelRatio||1;
-  const W=canvas.offsetWidth*dpr,H=220*dpr;
-  if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
-  const ctx=canvas.getContext('2d');
-  ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
-
-  const pad={l:36*dpr,r:10*dpr,t:10*dpr,b:22*dpr};
-  const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
-  const minFreq=20,maxFreq=pitch?Math.min(pitch*14,8000):4000;
-  const toX=f=>pad.l+((f-minFreq)/(maxFreq-minFreq))*pw;
-  const dBmin=-100,dBmax=-10;
-  const toY=db=>pad.t+ph-(Math.max(dBmin,Math.min(dBmax,db))-dBmin)/(dBmax-dBmin)*ph;
-
-  // グリッド
-  [-80,-60,-40,-20].forEach(db=>{
-    const y=toY(db);
-    ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();
-    ctx.fillStyle='#3a4050';ctx.font=`${7*dpr}px monospace`;ctx.textAlign='right';
-    ctx.fillText(db+'dB',pad.l-3,y+3);
+function saveImage(){
+  if(!lastResult)return;
+  const r=lastResult;
+  const W=600,H=440;
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#0a0c10';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#1e2330';ctx.lineWidth=1;ctx.strokeRect(1,1,W-2,H-2);
+  ctx.fillStyle='#4ff0b0';ctx.font='bold 16px monospace';ctx.textAlign='center';
+  ctx.fillText('VOICE ANALYZER PRO',W/2,32);
+  const vColor=r.vClass==='good'?'#4ff0b0':r.vClass==='warn'?'#ffd166':'#ff6b6b';
+  ctx.fillStyle=vColor;ctx.font='bold 19px sans-serif';ctx.textAlign='center';
+  ctx.fillText(r.vIcon+' '+r.vTitle,W/2,65);
+  ctx.fillStyle=vColor;ctx.font='bold 58px monospace';ctx.textAlign='center';
+  ctx.fillText(r.totalScore+'点',W/2,140);
+  ctx.fillStyle='#c8d0e0';ctx.font='12px monospace';ctx.textAlign='center';
+  ctx.fillText('基音:'+r.pitchScore+' 倍音:'+r.richScore+' ハリ:'+r.formantScore+' ゆらぎ:'+r.flickerScore+' 安定:'+r.stabilityScore+' クリア:'+r.hnrScore,W/2,168);
+  ctx.fillStyle='#8a9ab0';ctx.font='11px monospace';ctx.textAlign='center';
+  ctx.fillText('基音:'+Math.round(r.meanPitch)+'Hz  Jitter:'+r.jitter.toFixed(2)+'%  Shimmer:'+r.shimmer.toFixed(1)+'%  HNR:'+r.hnrDb.toFixed(1)+'dB  抑揚:'+r.intonationSemitones.toFixed(1)+'st',W/2,188);
+  const barX=80,barW=W-160,barH=15,barGap=20,startY=210;
+  const maxR=Math.max(...r.harmonicRatios,0.01);
+  r.harmonicRatios.slice(0,8).forEach((ratio,h)=>{
+    const y=startY+h*barGap;
+    ctx.fillStyle='#3a4050';ctx.font='9px monospace';ctx.textAlign='right';ctx.fillText(h===0?'基音':'×'+(h+1),barX-6,y+barH-4);
+    ctx.fillStyle='#1a1e28';ctx.fillRect(barX,y,barW,barH);
+    const fw=Math.min(barW,(ratio/maxR)*barW);
+    ctx.fillStyle=HARMONIC_COLORS[h]+'cc';ctx.fillRect(barX,y,fw,barH);
   });
-
-  // X軸
-  let step=500;
-  if(maxFreq<2000)step=200;
-  if(maxFreq<1000)step=100;
-  for(let f=step;f<maxFreq;f+=step){
-    const x=toX(f);
-    ctx.strokeStyle='#1a1e28';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ph);ctx.stroke();
-    ctx.fillStyle='#3a4050';ctx.font=`${7*dpr}px monospace`;ctx.textAlign='center';
-    ctx.fillText(f>=1000?(f/1000).toFixed(1)+'k':f+'',x,pad.t+ph+14*dpr);
-  }
-
-  // スペクトル
-  const minBin=Math.max(1,Math.floor(minFreq/binHz));
-  const maxBin=Math.min(Math.ceil(maxFreq/binHz),bufLen-1);
-  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ph);
-  grad.addColorStop(0,'rgba(79,240,176,0.7)');
-  grad.addColorStop(1,'rgba(79,240,176,0.02)');
-  ctx.beginPath();
-  let first=true;
-  for(let b=minBin;b<=maxBin;b++){
-    const x=toX(b*binHz),y=toY(freqData[b]);
-    first?ctx.moveTo(x,y):ctx.lineTo(x,y);first=false;
-  }
-  ctx.lineTo(toX(maxBin*binHz),pad.t+ph);ctx.lineTo(toX(minFreq),pad.t+ph);ctx.closePath();
-  ctx.fillStyle=grad;ctx.fill();
-  ctx.beginPath();first=true;
-  for(let b=minBin;b<=maxBin;b++){
-    const x=toX(b*binHz),y=toY(freqData[b]);
-    first?ctx.moveTo(x,y):ctx.lineTo(x,y);first=false;
-  }
-  ctx.strokeStyle='rgba(79,240,176,0.9)';ctx.lineWidth=1.5*dpr;ctx.stroke();
-
-  // 倍音マーカー
-  if(!pitch)return;
-  for(let h=0;h<12;h++){
-    const centerHz=pitch*(h+1);
-    if(centerHz>maxFreq||centerHz<minFreq)continue;
-    const loB=Math.max(minBin,Math.round(centerHz*0.92/binHz));
-    const hiB=Math.min(Math.round(centerHz*1.08/binHz),bufLen-1);
-    let peakB=loB,peakV=freqData[loB];
-    for(let b=loB;b<=hiB;b++){if(freqData[b]>peakV){peakV=freqData[b];peakB=b;}}
-    const peakHz=peakB*binHz;
-    const x=toX(peakHz),y=toY(peakV);
-    if(y<pad.t||y>pad.t+ph)continue;
-    ctx.strokeStyle=COLORS[h]+'55';ctx.lineWidth=1*dpr;ctx.setLineDash([3*dpr,3*dpr]);
-    ctx.beginPath();ctx.moveTo(x,y+6*dpr);ctx.lineTo(x,pad.t+ph);ctx.stroke();ctx.setLineDash([]);
-    ctx.beginPath();ctx.arc(x,y,5*dpr,0,Math.PI*2);ctx.fillStyle=COLORS[h];ctx.fill();
-    ctx.fillStyle=COLORS[h];ctx.font=`bold ${8*dpr}px monospace`;ctx.textAlign='center';
-    ctx.fillText(h+1,x,y-16*dpr);
-    const hzLbl=peakHz>=1000?(peakHz/1000).toFixed(2)+'k':Math.round(peakHz)+'';
-    ctx.fillStyle=COLORS[h]+'cc';ctx.font=`${7*dpr}px monospace`;
-    ctx.fillText(hzLbl+'Hz',x,y-6*dpr);
-  }
+  ctx.fillStyle='#3a4050';ctx.font='10px monospace';ctx.textAlign='center';
+  ctx.fillText('voice-analyzer-pro',W/2,H-10);
+  const dataUrl=c.toDataURL('image/png');
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(isIOS){const w=window.open('','_blank');w.document.write('<html><body style="margin:0;background:#000"><img src="'+dataUrl+'" style="max-width:100%"/><br><p style="color:#fff;text-align:center;font-size:14px">画像を長押しして保存してください</p></body></html>');w.document.close();}
+  else{const link=document.createElement('a');link.download='voice_result.png';link.href=dataUrl;link.click();}
 }
 
 // ============================================================
-// 倍音リスト
+// ツイート
 // ============================================================
-function updateHarmonicList(freqData,binHz,bufLen,pitch){
-  const list=document.getElementById('harmonicList');
-  let html='';
-  for(let h=0;h<12;h++){
-    const centerHz=pitch*(h+1);
-    if(centerHz>audioCtx.sampleRate/2)break;
-    const loB=Math.max(1,Math.round(centerHz*0.92/binHz));
-    const hiB=Math.min(Math.round(centerHz*1.08/binHz),bufLen-1);
-    let peakB=loB,peakV=freqData[loB];
-    for(let b=loB;b<=hiB;b++){if(freqData[b]>peakV){peakV=freqData[b];peakB=b;}}
-    const peakHz=peakB*binHz;
-    const hzStr=peakHz>=1000?(peakHz/1000).toFixed(3)+'kHz':peakHz.toFixed(1)+'Hz';
-    html+=`<div class="h-item">
-      <span class="h-num" style="color:${COLORS[h]}">${h===0?'基音':'×'+(h+1)}</span>
-      <span class="h-hz" style="color:${COLORS[h]}">${hzStr}</span>
-      <span class="h-db">${peakV.toFixed(1)}dB</span>
-    </div>`;
+function tweetResult(){
+  if(!lastResult)return;
+  const r=lastResult;
+  const verdict=r.vClass==='good'?'いい声認定！🎙️':'もう一息🎶';
+  const text=`自分の声を本格分析してみた！\n\n結果: ${verdict}\nスコア: ${r.totalScore}点\n基音: ${Math.round(r.meanPitch)}Hz / HNR: ${r.hnrDb.toFixed(1)}dB / Jitter: ${r.jitter.toFixed(2)}%\n\n#いい声診断 #倍音分析 #VoiceAnalyzerPro`;
+  window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(text),'_blank');
+}
+
+// ============================================================
+// FFTユーティリティ
+// ============================================================
+function nextPow2(n){let p=1;while(p<n)p<<=1;return p;}
+function linReg(xs,ys){
+  const n=xs.length,mx=xs.reduce((a,b)=>a+b,0)/n,my=ys.reduce((a,b)=>a+b,0)/n;
+  let num=0,den=0;
+  for(let i=0;i<n;i++){num+=(xs[i]-mx)*(ys[i]-my);den+=(xs[i]-mx)**2;}
+  const slope=num/den;return{slope,intercept:my-slope*mx};
+}
+function fftMagnitude(x){
+  const N=x.length,re=Array.from(x),im=new Array(N).fill(0);
+  let j=0;
+  for(let i=1;i<N;i++){let bit=N>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]];}}
+  for(let len=2;len<=N;len<<=1){
+    const ang=-2*Math.PI/len,wRe=Math.cos(ang),wIm=Math.sin(ang);
+    for(let i=0;i<N;i+=len){
+      let cRe=1,cIm=0;
+      for(let k=0;k<len/2;k++){
+        const uRe=re[i+k],uIm=im[i+k];
+        const vRe=re[i+k+len/2]*cRe-im[i+k+len/2]*cIm;
+        const vIm=re[i+k+len/2]*cIm+im[i+k+len/2]*cRe;
+        re[i+k]=uRe+vRe;im[i+k]=uIm+vIm;re[i+k+len/2]=uRe-vRe;im[i+k+len/2]=uIm-vIm;
+        const tmp=cRe*wRe-cIm*wIm;cIm=cRe*wIm+cIm*wRe;cRe=tmp;
+      }
+    }
   }
-  list.innerHTML=html;
+  return re.map((r,i)=>Math.sqrt(r*r+im[i]*im[i]));
 }
 </script>
 </body>
