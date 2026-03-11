@@ -717,7 +717,7 @@ function drawHarmonicCanvas(r){
     const centerHz=r.meanPitch*(h+1);
     if(centerHz>maxFreqShow||centerHz<minFreqShow)continue;
     // ±15%の範囲でピーク探索
-    const loHz=centerHz*0.85,hiHz=centerHz*1.15;
+    const loHz=centerHz*0.92,hiHz=centerHz*1.08;
     const loBin=Math.max(minBin,Math.round(loHz/r.binHz));
     const hiBin=Math.min(Math.round(hiHz/r.binHz),r.half-1);
     let peakBin=loBin,peakAmp=0;
