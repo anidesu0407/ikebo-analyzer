@@ -1028,22 +1028,39 @@ function drawWaveform(){
 function saveImage(){
   if(!lastResult)return;
   const r=lastResult;
-  const W=600,H=420;
+
+  // 声質タイプと声優を取得（診断済みの場合）
+  const voiceTypeEl=document.getElementById('voiceTypeContent');
+  const typeLabel=voiceTypeEl.querySelector?.(
+    '[style*="Space Mono"]'
+  )?.textContent||'';
+  const seiyuuEls=voiceTypeEl.querySelectorAll?.('[style*="font-weight:600"]')||[];
+  const seiyuuNames=[...seiyuuEls].map(e=>e.textContent).filter(Boolean);
+
+  const hasVoiceType=typeLabel.length>0;
+  const H=hasVoiceType?580:440;
+  const W=600;
   const c=document.createElement('canvas');c.width=W;c.height=H;
   const ctx=c.getContext('2d');
   ctx.fillStyle='#0a0c10';ctx.fillRect(0,0,W,H);
   ctx.strokeStyle='#1e2330';ctx.lineWidth=1;ctx.strokeRect(1,1,W-2,H-2);
+
+  // タイトル
   ctx.fillStyle='#4ff0b0';ctx.font='bold 17px monospace';ctx.textAlign='center';
   ctx.fillText('IKEBO ANALYZER',W/2,34);
+
+  // 判定
   const vColor=r.vClass==='good'?'#4ff0b0':r.vClass==='warn'?'#ffd166':'#ff6b6b';
   ctx.fillStyle=vColor;ctx.font='bold 20px sans-serif';ctx.textAlign='center';
   ctx.fillText(r.vIcon+' '+r.vTitle,W/2,68);
   ctx.fillStyle=vColor;ctx.font='bold 62px monospace';ctx.textAlign='center';
   ctx.fillText(r.totalScore+'点',W/2,148);
+
+  // スコア詳細
   ctx.fillStyle='#c8d0e0';ctx.font='13px monospace';ctx.textAlign='center';
-  ctx.fillText('基音の低さ: '+r.pitchScore+'  倍音の豊かさ: '+r.richScore+'  声のハリ: '+r.formantScore,W/2,178);
+  ctx.fillText('基音の低さ: '+r.pitchScore+'  倍音の豊かさ: '+r.richScore+'  声のハリ: '+r.formantScore+'  ゆらぎ: '+r.flickerScore,W/2,178);
   ctx.fillStyle='#8a9ab0';ctx.font='12px monospace';ctx.textAlign='center';
-  ctx.fillText('平均基音: '+Math.round(r.meanPitch)+'Hz  倍音エネルギー: '+(r.harmonicRichness*100).toFixed(1)+'%  Singer\'s Formant: '+(r.sfRatio*100).toFixed(1)+'%',W/2,200);
+  ctx.fillText('平均基音: '+Math.round(r.meanPitch)+'Hz  倍音: '+(r.harmonicRichness*100).toFixed(1)+'%  Singer\'s Formant: '+(r.sfRatio*100).toFixed(1)+'%  ゆらぎ傾き: '+r.flickerSlope.toFixed(2),W/2,200);
 
   // 倍音バー
   const barX=80,barW=W-160,barH=16,barGap=22,startY=224;
@@ -1056,6 +1073,41 @@ function saveImage(){
     const fw=Math.min(barW,(ratio/maxR)*barW);
     ctx.fillStyle=HARMONIC_COLORS[h]+'cc';ctx.fillRect(barX,y,fw,barH);
   });
+
+  let nextY=startY+8*barGap+16;
+
+  // 声質タイプ・似ている声優（診断済みの場合）
+  if(hasVoiceType){
+    // 区切り線
+    ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(40,nextY);ctx.lineTo(W-40,nextY);ctx.stroke();
+    nextY+=18;
+
+    ctx.fillStyle='#4ff0b0';ctx.font='bold 13px monospace';ctx.textAlign='left';
+    ctx.fillText('声質タイプ: '+typeLabel,40,nextY);
+    nextY+=20;
+
+    if(seiyuuNames.length>0){
+      ctx.fillStyle='#7eb8ff';ctx.font='12px sans-serif';ctx.textAlign='left';
+      ctx.fillText('似ている声優: '+seiyuuNames.slice(0,3).join(' / '),40,nextY);
+      nextY+=22;
+    }
+
+    // 区切り線
+    ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(40,nextY);ctx.lineTo(W-40,nextY);ctx.stroke();
+    nextY+=16;
+
+    // AIへの促しテキスト
+    ctx.fillStyle='#ffd166';ctx.font='bold 11px monospace';ctx.textAlign='center';
+    ctx.fillText('── AI診断用データ ──',W/2,nextY);
+    nextY+=16;
+    ctx.fillStyle='#8a9ab0';ctx.font='10px monospace';ctx.textAlign='center';
+    ctx.fillText('この声質データをもとに分析して',W/2,nextY);
+    nextY+=14;
+    ctx.fillStyle='#6a7a90';ctx.font='10px monospace';ctx.textAlign='center';
+    ctx.fillText('（基音'+Math.round(r.meanPitch)+'Hz / 声質:'+typeLabel+' / 声優:'+seiyuuNames.slice(0,2).join('・')+'に近い）',W/2,nextY);
+  }
 
   ctx.fillStyle='#3a4050';ctx.font='10px monospace';ctx.textAlign='center';
   ctx.fillText('ikebo-analyzer',W/2,H-10);
