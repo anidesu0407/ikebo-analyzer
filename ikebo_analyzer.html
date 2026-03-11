@@ -458,9 +458,8 @@ function analyze(){
   const harmonicRatios=harmonicEnergies.map(e=>e/fundamentalEnergy);
 
   // --- 4. Singer's Formant（2〜4kHz帯のエネルギー）---
-  // 基音の0.8倍〜8kHzの範囲で計算（低周波ノイズを除外）
   const sfLo=Math.floor(2000/binHz),sfHi=Math.min(Math.ceil(4000/binHz),half-1);
-  const totalLo=Math.max(Math.floor(refinedPitch*0.8/binHz),Math.floor(200/binHz));
+  const totalLo=Math.floor(200/binHz);
   const totalHi=Math.min(Math.ceil(8000/binHz),half-1);
   let sfEnergy=0,totalEnergy=0;
   for(let b=sfLo;b<=sfHi;b++) sfEnergy+=spectrum[b]*spectrum[b];
