@@ -214,7 +214,7 @@
       <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subStabilityBar" style="width:0%;background:var(--accent5)"></div></div>
     </div>
     <div class="sub-score-card">
-      <div class="sub-score-label">💎 声のクリアさ<br><span style="font-size:.62rem;color:#5a6070">HNR × 15%</span></div>
+      <div class="sub-score-label">💎 声のクリアさ<br><span style="font-size:.62rem;color:#5a6070">純音度 × 15%</span></div>
       <div class="sub-score-val good" id="subHNR">−</div>
       <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subHNRBar" style="width:0%;background:var(--accent3)"></div></div>
     </div>
@@ -260,7 +260,7 @@
           <div class="metric-sub">小さいほど安定</div>
         </div>
         <div class="metric">
-          <div class="metric-label">HNR（調和雑音比）</div>
+          <div class="metric-label">純音度（声のクリアさ）</div>
           <div class="metric-value good" id="metHNR">−</div>
           <div class="metric-sub">高いほどクリアな声</div>
         </div>
@@ -299,7 +299,7 @@
     <li><strong style="color:var(--accent3)">倍音エネルギー比</strong>が高いほど声に深みと温かみがある</li>
     <li><strong style="color:var(--accent4)">Singer's Formant（2〜4kHz）</strong>が高いと声にハリが出て通りやすくなる</li>
     <li><strong style="color:var(--accent5)">Jitter・Shimmer</strong>はピッチと音量のブレ。小さいほど安定した声</li>
-    <li><strong style="color:var(--accent3)">HNR（調和雑音比）</strong>が高いほど雑音が少なくクリアな声</li>
+    <li><strong style="color:var(--accent3)">純音度</strong>が高いほど倍音がはっきりしたクリアな声。ノイズや反響が多いと低くなります</li>
     <li><strong style="color:var(--accent2)">1/fゆらぎ</strong>の傾きが −0.7〜−1.3 付近が「心地よい声」</li>
     <li>録音は<strong style="color:var(--accent)">静かな環境</strong>でマイクとの距離10〜15cmが目安</li>
   </ul>
@@ -573,51 +573,32 @@ async function analyzeAudio(){
   // 安定性スコア（JitterとShimmerの平均）
   const stabilityScore=Math.round((jitterScore+shimmerScore)/2);
 
-  // --- 9. HNR（調和雑音比）高周波帯ノイズフロア推定法 ---
+  // --- 9. 純音度（倍音エネルギー比率）でクリアさを計算 ---
+  // 倍音ピークのエネルギー合計 ÷ 全体エネルギーの比率
+  // 倍音がはっきりしているほど高く、ノイズが多いほど低くなる
   {
-    // 4kHz〜8kHzの倍音から離れた帯域でノイズフロアを推定
-    const noiseEstMinBin=Math.floor(4000/binHz);
-    const noiseEstMaxBin=Math.min(Math.floor(8000/binHz),half-1);
-
-    // ノイズフロア推定：4〜8kHz帯で倍音ピーク以外のビンの平均
-    const noiseEstBins=[];
-    for(let b=noiseEstMinBin;b<=noiseEstMaxBin;b++){
-      // この帯域の倍音ピークを除外（±5%）
-      let isHarmonicPeak=false;
-      for(let h=1;h<=12;h++){
-        const hFreq=refinedPitch*h;
-        if(Math.abs(b*binHz-hFreq)/hFreq<0.05){isHarmonicPeak=true;break;}
-      }
-      if(!isHarmonicPeak) noiseEstBins.push(spectrum[b]*spectrum[b]);
+    const pureMinBin=Math.floor(refinedPitch*0.8/binHz);
+    const pureMaxBin=Math.min(Math.floor(8000/binHz),half-1);
+    let harmonicPow=0,totalPow=0;
+    for(let b=pureMinBin;b<=pureMaxBin;b++){
+      totalPow+=spectrum[b]*spectrum[b];
     }
-    noiseEstBins.sort((a,b)=>a-b);
-    // 中央値をノイズフロア1ビンあたりのパワーとして使用
-    const noiseFloorPerBin=noiseEstBins.length>0
-      ?noiseEstBins[Math.floor(noiseEstBins.length*0.5)]
-      :1e-30;
-
-    // 基音〜8kHzの倍音エネルギー合計
-    const hnrMinBin=Math.floor(refinedPitch*0.8/binHz);
-    const hnrMaxBin=Math.min(Math.floor(8000/binHz),half-1);
-    let totalHarmonicPow=0;
     for(let h=1;h<=12;h++){
       const hFreq=refinedPitch*h;
       if(hFreq>8000)break;
       const hw=Math.max(2,Math.round(hFreq*0.10/binHz));
       const hCenter=Math.round(hFreq/binHz);
-      const lo=Math.max(hnrMinBin,hCenter-hw);
-      const hi=Math.min(hnrMaxBin,hCenter+hw);
-      for(let b=lo;b<=hi;b++) totalHarmonicPow+=spectrum[b]*spectrum[b];
+      const lo=Math.max(pureMinBin,hCenter-hw);
+      const hi=Math.min(pureMaxBin,hCenter+hw);
+      for(let b=lo;b<=hi;b++) harmonicPow+=spectrum[b]*spectrum[b];
     }
-
-    // 全体ノイズ推定：ノイズフロア×全ビン数
-    const totalBins=hnrMaxBin-hnrMinBin;
-    const estimatedNoisePow=Math.max(1e-30,noiseFloorPerBin*totalBins);
-
-    var hnrDb=totalHarmonicPow>0?10*Math.log10(totalHarmonicPow/estimatedNoisePow):-5;
+    var purity=totalPow>0?harmonicPow/totalPow:0;
+    // dB表示用（参考値として保持）
+    var hnrDb=purity>0&&purity<1?10*Math.log10(purity/(1-purity)):0;
     hnrDb=Math.max(-5,Math.min(35,hnrDb));
   }
-  const hnrScore=Math.max(0,Math.min(100,Math.round((hnrDb/25)*90+10)));
+  // スコア: 純音度60%→100, 40%→80, 25%→55, 15%→30, <10%→0
+  const hnrScore=Math.max(0,Math.min(100,Math.round((purity-0.1)/0.5*100)));
 
   // --- 10. 抑揚の幅（半音数）---
   // 上下10%除去後、さらに中央値±1オクターブ以内に絞る
@@ -681,7 +662,7 @@ async function analyzeAudio(){
   lastResult={
     totalScore,pitchScore,richScore,formantScore,flickerScore,stabilityScore,hnrScore,
     flickerSlope,meanPitch:refinedPitch,harmonicRatios,sfRatio,harmonicRichness,
-    jitter,shimmer,hnrDb,intonationSemitones,
+    jitter,shimmer,hnrDb,purity,intonationSemitones,
     vClass,vTitle,vIcon,
     frames:pitchValues.length,spectrum,half,binHz,sampleRate,subHarmonics
   };
@@ -754,8 +735,8 @@ function displayResults(r){
   document.getElementById('metJitter').className='metric-value '+(r.jitter<0.5?'good':r.jitter<1?'warn':'bad');
   document.getElementById('metShimmer').textContent=r.shimmer.toFixed(2)+' dB';
   document.getElementById('metShimmer').className='metric-value '+(r.shimmer<0.5?'good':r.shimmer<1.5?'warn':'bad');
-  document.getElementById('metHNR').textContent=r.hnrDb.toFixed(1)+' dB';
-  document.getElementById('metHNR').className='metric-value '+(r.hnrDb>15?'good':r.hnrDb>5?'warn':'bad');
+  document.getElementById('metHNR').textContent=(r.purity*100).toFixed(1)+' %';
+  document.getElementById('metHNR').className='metric-value '+(r.purity>0.5?'good':r.purity>0.3?'warn':'bad');
   document.getElementById('metIntonation').textContent=r.intonationSemitones.toFixed(1)+' st';
   document.getElementById('metIntonation').className='metric-value '+(r.intonationSemitones>2&&r.intonationSemitones<12?'good':r.intonationSemitones>1?'warn':'bad');
 
