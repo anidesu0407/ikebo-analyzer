@@ -596,8 +596,6 @@ async function analyzeAudio(){
   const stabilityScore=Math.round((jitterScore+shimmerScore)/2);
 
   // --- 9. 純音度（倍音エネルギー比率）でクリアさを計算 ---
-  // 倍音ピークのエネルギー合計 ÷ 全体エネルギーの比率
-  // 倍音がはっきりしているほど高く、ノイズが多いほど低くなる
   {
     const pureMinBin=Math.floor(refinedPitch*0.8/binHz);
     const pureMaxBin=Math.min(Math.floor(8000/binHz),half-1);
@@ -608,14 +606,15 @@ async function analyzeAudio(){
     for(let h=1;h<=12;h++){
       const hFreq=refinedPitch*h;
       if(hFreq>8000)break;
-      const hw=Math.max(2,Math.round(hFreq*0.10/binHz));
+      // ±8%に絞る（重複防止・totalPow超え防止）
+      const hw=Math.max(1,Math.round(hFreq*0.08/binHz));
       const hCenter=Math.round(hFreq/binHz);
       const lo=Math.max(pureMinBin,hCenter-hw);
       const hi=Math.min(pureMaxBin,hCenter+hw);
       for(let b=lo;b<=hi;b++) harmonicPow+=spectrum[b]*spectrum[b];
     }
-    var purity=totalPow>0?harmonicPow/totalPow:0;
-    // dB表示用（参考値として保持）
+    // 100%を超えないようクランプ
+    var purity=totalPow>0?Math.min(1,harmonicPow/totalPow):0;
     var hnrDb=purity>0&&purity<1?10*Math.log10(purity/(1-purity)):0;
     hnrDb=Math.max(-5,Math.min(35,hnrDb));
   }
