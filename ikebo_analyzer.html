@@ -120,7 +120,7 @@
 <!-- 練習台本 -->
 <div class="card">
   <div class="card-title">練習用サンプル台本（約20秒）</div>
-  <p style="font-size:.9rem;color:var(--text-dim);margin-bottom:16px;line-height:1.7;">低めの落ち着いた声で、ゆっくり読んでみてください。</p>
+  <p style="font-size:.9rem;color:var(--text-dim);margin-bottom:16px;line-height:1.7;">ゆっくり読んでみてください。</p>
   <div class="script-box">深夜、静かな図書館で、ページをめくる音だけが響いていた。古い本の匂いと、かすかなコーヒーの香り。ここにいると、時間が止まったような気がする。</div>
 </div>
 
@@ -407,14 +407,48 @@ function analyze(){
     for(let h=2;h<=hpsOrder;h++) product*=spectrum[Math.min(Math.round(b*h),half-1)];
     hps[b]=product;
   }
-  const hpsMinBin=Math.max(1,Math.round(20/binHz));
-  const hpsMaxBin=Math.min(Math.round(500/binHz),hpsLen-1);
-  let hpsPeakBin=hpsMinBin,hpsPeakVal=0;
-  for(let b=hpsMinBin;b<=hpsMaxBin;b++){if(hps[b]>hpsPeakVal){hpsPeakVal=hps[b];hpsPeakBin=b;}}
+  // HPS: 60〜400Hzで探索
+  const hpsMinBin=Math.max(1,Math.round(60/binHz));
+  const hpsMaxBin=Math.min(Math.round(400/binHz),hpsLen-1);
+  
+  // HPS上位3候補を取得
+  const hpsCandidates=[];
+  const hpsUsed=new Uint8Array(hpsLen);
+  for(let c=0;c<3;c++){
+    let best=hpsMinBin,bestVal=0;
+    for(let b=hpsMinBin;b<=hpsMaxBin;b++){
+      if(!hpsUsed[b]&&hps[b]>bestVal){bestVal=hps[b];best=b;}
+    }
+    // 候補周辺を使用済みにする（±10%）
+    const r=Math.round(best*0.1);
+    for(let b=Math.max(0,best-r);b<=Math.min(hpsLen-1,best+r);b++) hpsUsed[b]=1;
+    hpsCandidates.push({bin:best,val:bestVal});
+  }
+
+  // 倍音整合性チェック：各候補に対して2〜4倍音のスペクトルエネルギーを確認
+  let bestCandidate=hpsCandidates[0];
+  let bestScore=-1;
+  for(const cand of hpsCandidates){
+    const candHz=cand.bin*binHz;
+    let harmonicScore=0;
+    for(let h=2;h<=5;h++){
+      const hHz=candHz*h;
+      if(hHz>sampleRate/2)break;
+      const hBin=Math.round(hHz/binHz);
+      const loB=Math.max(0,hBin-Math.round(hBin*0.08));
+      const hiB=Math.min(half-1,hBin+Math.round(hBin*0.08));
+      let e=0;
+      for(let b=loB;b<=hiB;b++) e+=spectrum[b];
+      harmonicScore+=e;
+    }
+    if(harmonicScore>bestScore){bestScore=harmonicScore;bestCandidate=cand;}
+  }
+
   // 放物線補間でサブビン精度に
+  const hpsPeakBin=bestCandidate.bin;
   const hpsPrev=hpsPeakBin>0?hps[hpsPeakBin-1]:0;
   const hpsNext=hpsPeakBin<hpsLen-1?hps[hpsPeakBin+1]:0;
-  const hpsDenom=(hpsPrev-2*hpsPeakVal+hpsNext);
+  const hpsDenom=(hpsPrev-2*bestCandidate.val+hpsNext);
   const hpsFine=hpsDenom!==0?0.5*(hpsPrev-hpsNext)/(-hpsDenom):0;
   const refinedPitch=(hpsPeakBin+hpsFine)*binHz;
 
