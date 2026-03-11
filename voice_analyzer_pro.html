@@ -104,7 +104,9 @@
   /* アドバイスボックス */
   .advice-box{background:linear-gradient(135deg,#0f1f18,#0f1020);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-top:16px;}
   .advice-title{font-size:.75rem;color:var(--accent3);margin-bottom:6px;font-family:'Space Mono',monospace;}
-  .advice-text{font-size:.88rem;color:var(--text-dim);line-height:1.8;}
+  .advice-text{font-size:.88rem;color:var(--text-dim);line-height:1.8;white-space:pre-line;}
+  .metric-desc{font-size:.7rem;color:#4a5568;margin-top:5px;line-height:1.5;border-top:1px solid #1a1e28;padding-top:5px;}
+  .metric-desc b{color:#6a7588;}
 </style>
 </head>
 <body>
@@ -233,41 +235,55 @@
           <div class="metric-label">基音（平均ピッチ）</div>
           <div class="metric-value good" id="metPitch">−</div>
           <div class="metric-sub" id="metPitchSub">Hz</div>
+          <div class="metric-desc">声の<b>高さ</b>の基準。男性は85〜165Hz、女性は165〜260Hzが目安。低いほど落ち着いた声になります。</div>
         </div>
         <div class="metric">
           <div class="metric-label">倍音エネルギー比</div>
           <div class="metric-value good" id="metHRatio">−</div>
           <div class="metric-sub">基音に対する倍音強さ</div>
+          <div class="metric-desc">声の<b>深み・温かみ</b>の指標。高いほど倍音が豊かで「いい声」らしさが増します。</div>
         </div>
         <div class="metric">
           <div class="metric-label">Singer's Formant</div>
           <div class="metric-value good" id="metFormant">−</div>
           <div class="metric-sub">2〜4kHz帯エネルギー</div>
+          <div class="metric-desc">声の<b>ハリ・通りやすさ</b>の指標。声優やナレーターに多い特徴で、高いほど声が前に飛びます。</div>
         </div>
         <div class="metric">
           <div class="metric-label">1/fゆらぎ 傾き</div>
           <div class="metric-value" id="metSlope">−</div>
           <div class="metric-sub">理想値: −1.0 付近</div>
+          <div class="metric-desc">声の<b>心地よさ</b>の指標。−1.0に近いほど自然で聴き心地がよく、聴き手を引き込む声になります。</div>
         </div>
         <div class="metric">
           <div class="metric-label">Jitter（ピッチ変動）</div>
           <div class="metric-value good" id="metJitter">−</div>
           <div class="metric-sub">小さいほど安定</div>
+          <div class="metric-desc">声帯振動の<b>周期のブレ</b>。0.5%以下がプロレベル。大きいと「声が揺れている」印象になります。</div>
         </div>
         <div class="metric">
           <div class="metric-label">Shimmer（音量変動）</div>
           <div class="metric-value good" id="metShimmer">−</div>
           <div class="metric-sub">小さいほど安定</div>
+          <div class="metric-desc">声の<b>音量のブレ</b>。0.5dB以下がプロレベル。大きいと声にムラがある印象になります。</div>
         </div>
         <div class="metric">
           <div class="metric-label">純音度（声のクリアさ）</div>
           <div class="metric-value good" id="metHNR">−</div>
           <div class="metric-sub">高いほどクリアな声</div>
+          <div class="metric-desc">倍音がどれだけ<b>はっきりしているか</b>の指標。高いほど雑音が少なくクリアで通る声です。</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">スペクトル傾斜</div>
+          <div class="metric-value good" id="metTilt">−</div>
+          <div class="metric-sub">声の明るさ・暗さ</div>
+          <div class="metric-desc">高周波のエネルギー減衰具合。<b>−3〜−6dB/oct</b>が自然な声。値が小さいほど明るく通りやすい声です。</div>
         </div>
         <div class="metric">
           <div class="metric-label">抑揚の幅</div>
           <div class="metric-value good" id="metIntonation">−</div>
           <div class="metric-sub">ピッチ変動幅（半音）</div>
+          <div class="metric-desc">話すときの<b>音の高低差</b>。3〜10半音が自然な話し声の目安。単調すぎず過剰でない幅が理想です。</div>
         </div>
       </div>
     </div>
@@ -300,6 +316,7 @@
     <li><strong style="color:var(--accent4)">Singer's Formant（2〜4kHz）</strong>が高いと声にハリが出て通りやすくなる</li>
     <li><strong style="color:var(--accent5)">Jitter・Shimmer</strong>はピッチと音量のブレ。小さいほど安定した声</li>
     <li><strong style="color:var(--accent3)">純音度</strong>が高いほど倍音がはっきりしたクリアな声。ノイズや反響が多いと低くなります</li>
+    <li><strong style="color:var(--accent4)">スペクトル傾斜</strong>は声の明るさ・暗さ。−3〜−6dB/octが自然な話し声の目安です</li>
     <li><strong style="color:var(--accent2)">1/fゆらぎ</strong>の傾きが −0.7〜−1.3 付近が「心地よい声」</li>
     <li>録音は<strong style="color:var(--accent)">静かな環境</strong>でマイクとの距離10〜15cmが目安</li>
   </ul>
@@ -607,6 +624,24 @@ async function analyzeAudio(){
     .filter(p=>p>medianPitch*0.5&&p<medianPitch*2.0);
   const intonationSemitones=trimmedP.length>1?12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]):0;
 
+  // --- 10b. スペクトル傾斜（dB/octave）---
+  // 対数周波数軸でスペクトルエネルギーの回帰傾きを計算
+  // 200Hz〜8kHzの範囲でオクターブごとの平均エネルギーを求めて線形回帰
+  {
+    const tiltBands=[[200,400],[400,800],[800,1600],[1600,3200],[3200,6400]];
+    const tiltX=[],tiltY=[];
+    for(const [lo,hi] of tiltBands){
+      const loBin=Math.floor(lo/binHz),hiBin=Math.min(Math.ceil(hi/binHz),half-1);
+      let bandPow=0,count=0;
+      for(let b=loBin;b<=hiBin;b++){bandPow+=spectrum[b]*spectrum[b];count++;}
+      if(count>0&&bandPow>0){
+        tiltX.push(Math.log2((lo+hi)/2));
+        tiltY.push(10*Math.log10(bandPow/count));
+      }
+    }
+    var spectralTilt=tiltX.length>2?linReg(tiltX,tiltY).slope:0;
+  }
+
   // --- 11. スコア計算（6軸）---
   const pitchScore=Math.max(0,Math.min(100,Math.round(
     refinedPitch<=120?100:
@@ -662,7 +697,7 @@ async function analyzeAudio(){
   lastResult={
     totalScore,pitchScore,richScore,formantScore,flickerScore,stabilityScore,hnrScore,
     flickerSlope,meanPitch:refinedPitch,harmonicRatios,sfRatio,harmonicRichness,
-    jitter,shimmer,hnrDb,purity,intonationSemitones,
+    jitter,shimmer,hnrDb,purity,intonationSemitones,spectralTilt,
     vClass,vTitle,vIcon,
     frames:pitchValues.length,spectrum,half,binHz,sampleRate,subHarmonics
   };
@@ -739,6 +774,10 @@ function displayResults(r){
   document.getElementById('metHNR').className='metric-value '+(r.purity>0.5?'good':r.purity>0.3?'warn':'bad');
   document.getElementById('metIntonation').textContent=r.intonationSemitones.toFixed(1)+' st';
   document.getElementById('metIntonation').className='metric-value '+(r.intonationSemitones>2&&r.intonationSemitones<12?'good':r.intonationSemitones>1?'warn':'bad');
+  // スペクトル傾斜
+  const tilt=r.spectralTilt||0;
+  document.getElementById('metTilt').textContent=tilt.toFixed(1)+' dB/oct';
+  document.getElementById('metTilt').className='metric-value '+(tilt>=-8&&tilt<=-2?'good':tilt>=-12&&tilt<=-1?'warn':'bad');
 
   // レーダーチャート
   requestAnimationFrame(()=>drawRadar(r));
