@@ -525,6 +525,11 @@ function displayResults(r){
 
   // サブスコア
   const colorClass=v=>v>=70?'good':v>=40?'warn':'bad';
+  // ゆらぎは傾き値で判定（−1.0が理想）
+  const flickerColorClass=slope=>{
+    const d=Math.abs(slope+1.0);
+    return d<=0.2?'good':d<=0.4?'warn':'bad';
+  };
   ['Pitch','Rich','Formant'].forEach((k,i)=>{
     const score=[r.pitchScore,r.richScore,r.formantScore][i];
     document.getElementById(`sub${k}`).textContent=score+'点';
@@ -532,7 +537,7 @@ function displayResults(r){
     document.getElementById(`sub${k}Bar`).style.width=score+'%';
   });
   document.getElementById('subFlicker').textContent=r.flickerScore+'点';
-  document.getElementById('subFlicker').className='sub-score-val '+colorClass(r.flickerScore);
+  document.getElementById('subFlicker').className='sub-score-val '+flickerColorClass(r.flickerSlope);
   document.getElementById('subFlickerBar').style.width=r.flickerScore+'%';
 
   // メトリクス
@@ -543,7 +548,7 @@ function displayResults(r){
   document.getElementById('metFormant').textContent=(r.sfRatio*100).toFixed(1)+'%';
   document.getElementById('metFormant').className='metric-value '+colorClass(r.formantScore);
   document.getElementById('metSlope').textContent=r.flickerSlope.toFixed(2);
-  document.getElementById('metSlope').className='metric-value '+colorClass(r.flickerScore);
+  document.getElementById('metSlope').className='metric-value '+flickerColorClass(r.flickerSlope);
 
   // 倍音バー
   buildHarmonicBars(r.harmonicRatios);
