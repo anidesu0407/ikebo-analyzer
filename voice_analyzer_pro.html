@@ -479,7 +479,7 @@ async function analyzeAudio(){
 
   // --- 2. フレームごと自己相関 + Voiced Frame Detection ---
   const frameSize=4096,hopSize=512;
-  const minLag=Math.floor(sampleRate/400),maxLag=Math.floor(sampleRate/70);
+  const minLag=Math.floor(sampleRate/700),maxLag=Math.floor(sampleRate/70);
   const pitchValues=[];
   const rmsValues=[];
 
@@ -512,8 +512,8 @@ async function analyzeAudio(){
 
     const candPitch=sampleRate/bestLag;
 
-    // Voiced Frame Detection: ピッチ範囲外を除外（70〜400Hz）
-    if(candPitch<70||candPitch>400) continue;
+    // Voiced Frame Detection: ピッチ範囲外を除外（70〜700Hz）
+    if(candPitch<70||candPitch>700) continue;
 
     // 自己相関の信頼度チェック（正規化相関係数）
     let power=0;for(let i=0;i<frameSize;i++)power+=frame[i]*frame[i];
@@ -649,8 +649,9 @@ async function analyzeAudio(){
 
   // --- 10. スコア計算（4軸）---
   // 男女判定：表示用のみ（スコアには影響しない）
+  // 裏声も考慮して300Hz以上を女性、または165〜300Hzは平均的な女性域
   const isFemale = refinedPitch >= 165;
-  const genderLabel = isFemale ? '女性' : '男性';
+  const genderLabel = refinedPitch >= 165 ? '女性' : '男性';
 
   const totalScore=Math.round(
     richScore*0.40+
