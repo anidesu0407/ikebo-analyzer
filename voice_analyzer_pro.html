@@ -594,7 +594,7 @@ async function analyzeAudio(){
     harmonicRichness>=0.7 ? 100 :
     harmonicRichness>=0.4 ? 70+(harmonicRichness-0.4)/0.3*30 :
     harmonicRichness>=0.2 ? 40+(harmonicRichness-0.2)/0.2*30 :
-    harmonicRichness>=0.1 ? harmonicRichness/0.1*40 : 0
+    harmonicRichness>=0.1 ? (harmonicRichness-0.1)/0.1*40 : 0
   )));
   // 総合倍音スコア：数60% + 強さ40%
   const richScore=Math.round(countScore*0.6+strengthScore*0.4);
@@ -665,7 +665,7 @@ async function analyzeAudio(){
   // 抑揚スコア：3〜10半音が理想、単調すぎ・過剰すぎはペナルティ
   const intonationScore=Math.max(0,Math.min(100,Math.round(
     intonationSemitones<1  ? intonationSemitones*20 :
-    intonationSemitones<=3 ? 20+intonationSemitones/3*60 :
+    intonationSemitones<=3 ? 20+(intonationSemitones-1)/2*80 :
     intonationSemitones<=10? 80+(10-intonationSemitones)/7*20 :
     intonationSemitones<=16? 80-(intonationSemitones-10)/6*40 :
     40-(intonationSemitones-16)/8*40
@@ -943,6 +943,7 @@ function drawHarmonicCanvas(r){
   ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
   const pad={l:40*devicePixelRatio,r:12*devicePixelRatio,t:12*devicePixelRatio,b:24*devicePixelRatio};
   const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+  if(pw<=0||ph<=0)return; // 描画領域がない場合はスキップ
   const minFreqShow=50,maxFreqShow=Math.min(r.meanPitch*13,8000);
   const minBin=Math.max(1,Math.floor(minFreqShow/r.binHz));
   const maxBin=Math.min(Math.ceil(maxFreqShow/r.binHz),r.half-1);
@@ -1058,7 +1059,11 @@ function saveImage(){
   ctx.fillText('voice-analyzer-pro',W/2,H-10);
   const dataUrl=c.toDataURL('image/png');
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
-  if(isIOS){const w=window.open('','_blank');w.document.write('<html><body style="margin:0;background:#000"><img src="'+dataUrl+'" style="max-width:100%"/><br><p style="color:#fff;text-align:center;font-size:14px">画像を長押しして保存してください</p></body></html>');w.document.close();}
+  if(isIOS){
+    const w=window.open('','_blank');
+    if(w){w.document.write('<html><body style="margin:0;background:#000"><img src="'+dataUrl+'" style="max-width:100%"/><br><p style="color:#fff;text-align:center;font-size:14px">画像を長押しして保存してください</p></body></html>');w.document.close();}
+    else alert('ポップアップがブロックされています。ブラウザの設定でポップアップを許可してから再度お試しください。');
+  }
   else{const link=document.createElement('a');link.download='voice_result.png';link.href=dataUrl;link.click();}
 }
 
