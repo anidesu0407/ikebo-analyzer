@@ -533,9 +533,10 @@ async function analyzeAudio(){
   const fundamentalEnergy=harmonicEnergies[0]||1;
   const harmonicRatios=harmonicEnergies.map(e=>e/fundamentalEnergy);
 
-  // --- 4. Singer's Formant ---
+  // --- 4. Singer's Formant（2〜4kHz帯エネルギー÷200Hz〜4kHz全体）---
+  // 分母を200Hz〜4kHzに固定して録音ごとのブレを防ぐ
   const sfLo=Math.floor(2000/binHz),sfHi=Math.min(Math.ceil(4000/binHz),half-1);
-  const totalLo=Math.floor(200/binHz),totalHi=Math.min(Math.ceil(8000/binHz),half-1);
+  const totalLo=Math.floor(200/binHz),totalHi=Math.min(Math.ceil(4000/binHz),half-1);
   let sfEnergy=0,totalEnergy=0;
   for(let b=sfLo;b<=sfHi;b++) sfEnergy+=spectrum[b]*spectrum[b];
   for(let b=totalLo;b<=totalHi;b++) totalEnergy+=spectrum[b]*spectrum[b];
@@ -546,9 +547,11 @@ async function analyzeAudio(){
   const harmonicRichness=richRatios.reduce((a,b)=>a+b,0)/richRatios.length;
 
   // --- 6. 1/fゆらぎ ---
-  const N2=nextPow2(pitchValues.length);
+  // 中央値±20%で外れ値除去してから計算（安定しすぎ防止）
+  const flickerPitches=pitchValues.filter(p=>p>medianPitch*0.8&&p<medianPitch*1.2);
+  const N2=nextPow2(flickerPitches.length);
   const padded2=new Float32Array(N2);
-  for(let i=0;i<pitchValues.length;i++) padded2[i]=pitchValues[i]-refinedPitch;
+  for(let i=0;i<flickerPitches.length;i++) padded2[i]=flickerPitches[i]-refinedPitch;
   const spec2=fftMagnitude(padded2);
   const half2=Math.floor(N2/2);
   const logFreqs=[],logPowers=[];
@@ -558,7 +561,8 @@ async function analyzeAudio(){
     const lr=linReg(logFreqs,logPowers);
     flickerSlope=lr.slope;
     const dist=Math.abs(flickerSlope+1.0);
-    flickerScore=Math.max(0,Math.min(100,Math.round(100-dist*55)));
+    // 厳しめの閾値：±0.15以内→100点、±0.5→70点、±1.0→35点
+    flickerScore=Math.max(0,Math.min(100,Math.round(100-dist*70)));
   }
 
   // --- 7. Jitter（ピッチ周期変動）---
@@ -624,9 +628,11 @@ async function analyzeAudio(){
   const intonationSemitones=trimmedP.length>1?12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]):0;
 
   // --- 10b. スペクトル傾斜（dB/octave）---
-  // 500Hz〜8kHzの範囲でオクターブごとの平均エネルギーを求めて線形回帰
+  // 250Hz〜8kHzの8帯域で線形回帰（帯域を増やして安定化）
   {
-    const tiltBands=[[500,1000],[1000,2000],[2000,4000],[4000,8000]];
+    const tiltBands=[
+      [250,500],[500,1000],[1000,2000],[2000,4000],[4000,8000]
+    ];
     const tiltX=[],tiltY=[];
     for(const [lo,hi] of tiltBands){
       const loBin=Math.floor(lo/binHz),hiBin=Math.min(Math.ceil(hi/binHz),half-1);
@@ -637,19 +643,25 @@ async function analyzeAudio(){
         tiltY.push(10*Math.log10(bandPow/count));
       }
     }
-    var spectralTilt=tiltX.length>2?linReg(tiltX,tiltY).slope:0;
-    spectralTilt=Math.max(-20,Math.min(0,spectralTilt));
+    var spectralTilt=tiltX.length>=3?linReg(tiltX,tiltY).slope:0;
+    // -20〜+5dB/octの範囲でクランプ（正の値も許容）
+    spectralTilt=Math.max(-20,Math.min(5,spectralTilt));
   }
 
   // --- 11. スコア計算（6軸）---
+  // 基音スコア：85〜130Hzが満点、低すぎても高すぎても減点
   const pitchScore=Math.max(0,Math.min(100,Math.round(
-    refinedPitch<=120?100:
-    refinedPitch<=220?100-(refinedPitch-120)/100*35:
-    refinedPitch<=350?65-(refinedPitch-220)/130*30:
+    refinedPitch<60  ? 40 :
+    refinedPitch<=85 ? 40+(refinedPitch-60)/25*60 :
+    refinedPitch<=130? 100 :
+    refinedPitch<=220? 100-(refinedPitch-130)/90*35 :
+    refinedPitch<=350? 65-(refinedPitch-220)/130*30 :
     35-(refinedPitch-350)/150*35
   )));
   const richScore=Math.max(0,Math.min(100,Math.round(harmonicRichness*200)));
-  const formantScore=Math.max(0,Math.min(100,Math.round(sfRatio*500)));
+  // Singer's Formantスコア：分母が200〜4kHzになったので閾値調整
+  // 50%以上→100点、30%→70点、15%→40点、<5%→0点
+  const formantScore=Math.max(0,Math.min(100,Math.round((sfRatio-0.05)/0.45*100)));
   const totalScore=Math.round(
     pitchScore*0.20+
     richScore*0.20+
