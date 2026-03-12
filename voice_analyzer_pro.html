@@ -516,10 +516,10 @@ async function analyzeAudio(){
     if(candPitch<70||candPitch>400) continue;
 
     // 自己相関の信頼度チェック（正規化相関係数）
-    let power=0;for(let i=0;i<frameSize-maxLag;i++)power+=frame[i]*frame[i];
+    let power=0;for(let i=0;i<frameSize;i++)power+=frame[i]*frame[i];
     const normalizedAc=power>0?bestVal/power:0;
-    // 信頼度0.3未満は無声と判断
-    if(normalizedAc<0.3) continue;
+    // 信頼度0.1未満は無声と判断（厳しすぎると全フレーム弾かれるので緩め）
+    if(normalizedAc<0.1) continue;
 
     pitchValues.push(candPitch);
     rmsValues.push(rms);
