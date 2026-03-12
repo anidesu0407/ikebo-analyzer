@@ -188,25 +188,20 @@
     </div>
   </div>
 
-  <!-- サブスコア 5項目 -->
+  <!-- サブスコア 4項目 -->
   <div class="sub-scores">
     <div class="sub-score-card">
-      <div class="sub-score-label">🎙️ 基音の低さ<br><span style="font-size:.62rem;color:#5a6070">× 25%</span></div>
-      <div class="sub-score-val good" id="subPitch">−</div>
-      <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subPitchBar" style="width:0%;background:var(--accent)"></div></div>
-    </div>
-    <div class="sub-score-card">
-      <div class="sub-score-label">🎻 倍音の豊かさ<br><span style="font-size:.62rem;color:#5a6070">× 25%</span></div>
+      <div class="sub-score-label">🎻 倍音の豊かさ<br><span style="font-size:.62rem;color:#5a6070">倍音数×強さ × 40%</span></div>
       <div class="sub-score-val good" id="subRich">−</div>
       <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subRichBar" style="width:0%;background:var(--accent3)"></div></div>
     </div>
     <div class="sub-score-card">
-      <div class="sub-score-label">🌊 声のゆらぎ<br><span style="font-size:.62rem;color:#5a6070">× 20%</span></div>
+      <div class="sub-score-label">🌊 声のゆらぎ<br><span style="font-size:.62rem;color:#5a6070">× 25%</span></div>
       <div class="sub-score-val good" id="subFlicker">−</div>
       <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subFlickerBar" style="width:0%;background:var(--accent)"></div></div>
     </div>
     <div class="sub-score-card">
-      <div class="sub-score-label">🔬 声の安定性<br><span style="font-size:.62rem;color:#5a6070">Jitter+Shimmer × 20%</span></div>
+      <div class="sub-score-label">🔬 声の安定性<br><span style="font-size:.62rem;color:#5a6070">Jitter+Shimmer × 25%</span></div>
       <div class="sub-score-val good" id="subStability">−</div>
       <div class="sub-score-bar-wrap"><div class="sub-score-bar" id="subStabilityBar" style="width:0%;background:var(--accent5)"></div></div>
     </div>
@@ -233,10 +228,10 @@
           <div class="metric-desc">声の<b>高さ</b>の基準。男性は85〜165Hz、女性は165〜260Hzが目安。低いほど落ち着いた声になります。</div>
         </div>
         <div class="metric">
-          <div class="metric-label">倍音エネルギー比</div>
+          <div class="metric-label">倍音の検出数</div>
           <div class="metric-value good" id="metHRatio">−</div>
-          <div class="metric-sub">基音に対する倍音強さ</div>
-          <div class="metric-desc">声の<b>深み・温かみ</b>の指標。高いほど倍音が豊かで「いい声」らしさが増します。</div>
+          <div class="metric-sub" id="metHRatioSub">12倍音中の検出数</div>
+          <div class="metric-desc">声の<b>深み・温かみ</b>の指標。多いほど倍音が豊かで「いい声」らしさが増します。強さも合わせて評価します。</div>
         </div>
         <div class="metric">
           <div class="metric-label">1/fゆらぎ 傾き</div>
@@ -293,11 +288,11 @@
     <span style="font-size:.85rem;"><span style="color:var(--accent2);font-weight:700;">● 赤</span> = 要改善</span>
   </div>
   <ul class="howto">
-    <li><strong style="color:var(--accent)">基音が低いほど</strong>有利。男性85〜130Hz・女性180〜260Hzが満点の目安（自動判定）</li>
-    <li><strong style="color:var(--accent3)">倍音エネルギー比</strong>が高いほど声に深みと温かみがある。100%以上は基音より倍音が強い声</li>
-    <li><strong style="color:var(--accent5)">Jitter・Shimmer</strong>はピッチと音量のブレ。小さいほど安定した声</li>
+    <li><strong style="color:var(--accent3)">倍音の数と強さ</strong>が最重要指標。12倍音中10個以上検出で高得点。男女・声域に関係なく評価します</li>
+    <li><strong style="color:var(--accent5)">Jitter・Shimmer</strong>はピッチと音量のブレ。ブラウザ計測では1%・1dB以下が安定の目安</li>
     <li><strong style="color:var(--accent2)">1/fゆらぎ</strong>の傾きが −0.7〜−1.3 付近が「心地よい声」</li>
     <li><strong style="color:var(--accent4)">抑揚の幅</strong>は3〜10半音が自然な話し声の目安</li>
+    <li>基音（Hz）は<strong style="color:var(--accent)">参考表示のみ</strong>でスコアには影響しません</li>
     <li>録音は<strong style="color:var(--accent)">静かな環境</strong>でマイクとの距離10〜15cmが目安</li>
   </ul>
 </div>
@@ -562,9 +557,24 @@ async function analyzeAudio(){
   const fundamentalEnergy=harmonicEnergies[0]||1;
   const harmonicRatios=harmonicEnergies.map(e=>e/fundamentalEnergy);
 
-  // --- 4. 倍音豊かさ（2〜5倍音のエネルギー比の平均）---
-  const richRatios=harmonicRatios.slice(1,5);
+  // --- 4. 倍音スコア（数×強さの組み合わせ）---
+  // 基音の10%以上の強さで検出された倍音を「有効」とカウント
+  const detectedCount=harmonicRatios.slice(1).filter(r=>r>=0.10).length; // 2〜12倍音中
+  // 倍音の強さ（2〜8倍音の平均比率）
+  const richRatios=harmonicRatios.slice(1,8);
   const harmonicRichness=richRatios.reduce((a,b)=>a+b,0)/richRatios.length;
+  // 倍音数スコア：11個→100点、8個→80点、5個→55点、3個→30点、1個以下→5点
+  const countScore=Math.max(0,Math.min(100,Math.round(
+    detectedCount>=10 ? 100 :
+    detectedCount>=7  ? 70+(detectedCount-7)/3*30 :
+    detectedCount>=4  ? 40+(detectedCount-4)/3*30 :
+    detectedCount>=2  ? 15+(detectedCount-2)/2*25 :
+    detectedCount===1 ? 5 : 0
+  )));
+  // 倍音強さスコア：平均50%以上→100点、30%→70点、15%→40点
+  const strengthScore=Math.max(0,Math.min(100,Math.round(harmonicRichness*200)));
+  // 総合倍音スコア：数60% + 強さ40%
+  const richScore=Math.round(countScore*0.6+strengthScore*0.4);
 
   // --- 6. 1/fゆらぎ ---
   // 中央値±20%で外れ値除去してから計算（安定しすぎ防止）
@@ -637,37 +647,15 @@ async function analyzeAudio(){
     40-(intonationSemitones-16)/8*40
   )));
 
-  // --- 10. スコア計算（5軸）---
-  // --- 男女自動判定（165Hz境界）---
+  // --- 10. スコア計算（4軸）---
+  // 男女判定：表示用のみ（スコアには影響しない）
   const isFemale = refinedPitch >= 165;
   const genderLabel = isFemale ? '女性' : '男性';
 
-  // 基音スコア：男女別基準
-  const pitchScore = isFemale
-    ? Math.max(0,Math.min(100,Math.round(
-        refinedPitch < 130 ? 30 :
-        refinedPitch <= 165 ? 30+(refinedPitch-130)/35*40 :
-        refinedPitch <= 180 ? 70+(refinedPitch-165)/15*30 :
-        refinedPitch <= 260 ? 100 :
-        refinedPitch <= 350 ? 100-(refinedPitch-260)/90*35 :
-        refinedPitch <= 450 ? 65-(refinedPitch-350)/100*40 :
-        25
-      )))
-    : Math.max(0,Math.min(100,Math.round(
-        refinedPitch < 60  ? 30 :
-        refinedPitch <= 85 ? 30+(refinedPitch-60)/25*70 :
-        refinedPitch <= 130? 100 :
-        refinedPitch <= 180? 100-(refinedPitch-130)/50*30 :
-        refinedPitch <= 280? 70-(refinedPitch-180)/100*30 :
-        refinedPitch <= 400? 40-(refinedPitch-280)/120*40 :
-        0
-      )));
-  const richScore=Math.max(0,Math.min(100,Math.round(harmonicRichness*200)));
   const totalScore=Math.round(
-    pitchScore*0.25+
-    richScore*0.25+
-    flickerScore*0.20+
-    stabilityScore*0.20+
+    richScore*0.40+
+    flickerScore*0.25+
+    stabilityScore*0.25+
     intonationScore*0.10
   );
 
@@ -695,12 +683,10 @@ async function analyzeAudio(){
 
   // --- アドバイス生成（男女別）---
   const advices=[];
-  if(pitchScore<60){
-    advices.push(isFemale
-      ? '基音の調整：口腔内を広く開けて共鳴させ、胸声と頭声のバランスを意識しましょう'
-      : '基音が高め：腹式呼吸を意識して、胸に響かせるチェストボイスを鍛えましょう');
+  if(richScore<60){
+    if(r.detectedCount<5) advices.push('倍音が少なめ：口腔内を広く保ち、口角を少し上げて発声すると倍音が豊かになります');
+    else advices.push('倍音の強さが弱め：ハミング練習で倍音を強化しましょう');
   }
-  if(richScore<60) advices.push('倍音が少なめ：口腔内を広く保ち、口角を少し上げて発声すると倍音が豊かになります');
   if(stabilityScore<60) advices.push('声の安定性：腹筋を使った安定した息の流れを意識し、声の揺れを減らしましょう');
   if(intonationScore<50) advices.push('抑揚の調整：単調すぎる場合は感情を込めた読み上げ練習を。過剰な場合は落ち着いたトーンを意識して');
   if(Math.abs(flickerSlope+1.0)>0.4) advices.push('ゆらぎの調整：単調すぎず、過剰に揺れすぎない自然な抑揚を意識してみましょう');
@@ -709,8 +695,8 @@ async function analyzeAudio(){
 
   // --- 結果保存 ---
   lastResult={
-    totalScore,pitchScore,richScore,flickerScore,stabilityScore,intonationScore,
-    flickerSlope,meanPitch:refinedPitch,harmonicRatios,harmonicRichness,
+    totalScore,richScore,countScore,strengthScore,flickerScore,stabilityScore,intonationScore,
+    flickerSlope,meanPitch:refinedPitch,harmonicRatios,harmonicRichness,detectedCount,
     jitter,shimmer,intonationSemitones,
     isFemale,genderLabel,
     vClass,vTitle,vIcon,vDesc,
@@ -738,13 +724,12 @@ function displayResults(r){
   const cc=v=>v>=70?'good':v>=40?'warn':'bad';
   const flickerCC=s=>{const d=Math.abs(s+1.0);return d<=0.2?'good':d<=0.4?'warn':'bad';};
 
-  // サブスコア（5軸）
+  // サブスコア（4軸）
   const subs=[
-    ['Pitch',    r.pitchScore,     'var(--accent)',  cc],
-    ['Rich',     r.richScore,      'var(--accent3)', cc],
-    ['Flicker',  r.flickerScore,   null,             ()=>flickerCC(r.flickerSlope)],
-    ['Stability',r.stabilityScore, 'var(--accent5)', cc],
-    ['Intonation',r.intonationScore,'var(--accent4)',cc],
+    ['Rich',      r.richScore,      'var(--accent3)', cc],
+    ['Flicker',   r.flickerScore,   null,             ()=>flickerCC(r.flickerSlope)],
+    ['Stability', r.stabilityScore, 'var(--accent5)', cc],
+    ['Intonation',r.intonationScore,'var(--accent4)', cc],
   ];
   subs.forEach(([k,score,color,fn])=>{
     const cls=fn(score);
@@ -774,10 +759,11 @@ function displayResults(r){
     else pitchComment='男性・高め';
   }
   document.getElementById('metPitch').textContent=Math.round(r.meanPitch)+' Hz';
-  document.getElementById('metPitch').className='metric-value '+cc(r.pitchScore);
+  document.getElementById('metPitch').className='metric-value good'; // 基音は参考表示のみ・色固定
   document.getElementById('metPitchSub').textContent=genderBadge+' — '+pitchComment;
-  document.getElementById('metHRatio').textContent=Math.min(100,r.harmonicRichness*100).toFixed(1)+'%';
+  document.getElementById('metHRatio').textContent=r.detectedCount+' / 11';
   document.getElementById('metHRatio').className='metric-value '+cc(r.richScore);
+  document.getElementById('metHRatioSub').textContent='強さ: '+(r.harmonicRichness*100).toFixed(1)+'%　検出数: '+r.detectedCount+'/11倍音';
   document.getElementById('metSlope').textContent=r.flickerSlope.toFixed(2);
   document.getElementById('metSlope').className='metric-value '+flickerCC(r.flickerSlope);
   // Jitter: ブラウザ基準 1%以下→緑、2%以下→黄、それ以上→赤
@@ -813,9 +799,9 @@ function drawRadar(r){
   const ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,SIZE,SIZE);
   const cx=SIZE/2,cy=SIZE/2,maxR=SIZE*0.32;// 少し小さくしてラベル余白確保
-  const labels=['基音','倍音','ゆらぎ','安定性','抑揚'];
-  const scores=[r.pitchScore,r.richScore,r.flickerScore,r.stabilityScore,r.intonationScore];
-  const n=5;
+  const labels=['倍音','ゆらぎ','安定性','抑揚'];
+  const scores=[r.richScore,r.flickerScore,r.stabilityScore,r.intonationScore];
+  const n=4;
   const angle=i=>-Math.PI/2+(2*Math.PI/n)*i;
 
   // グリッド
@@ -1016,9 +1002,9 @@ function saveImage(){
   ctx.fillStyle=vColor;ctx.font='bold 58px monospace';ctx.textAlign='center';
   ctx.fillText(r.totalScore+'点',W/2,140);
   ctx.fillStyle='#c8d0e0';ctx.font='12px monospace';ctx.textAlign='center';
-  ctx.fillText('基音:'+r.pitchScore+' 倍音:'+r.richScore+' ゆらぎ:'+r.flickerScore+' 安定:'+r.stabilityScore+' 抑揚:'+r.intonationScore,W/2,168);
+  ctx.fillText('倍音:'+r.richScore+'('+r.detectedCount+'/11) ゆらぎ:'+r.flickerScore+' 安定:'+r.stabilityScore+' 抑揚:'+r.intonationScore,W/2,168);
   ctx.fillStyle='#8a9ab0';ctx.font='11px monospace';ctx.textAlign='center';
-  ctx.fillText('基音:'+Math.round(r.meanPitch)+'Hz  Jitter:'+r.jitter.toFixed(2)+'%  Shimmer:'+r.shimmer.toFixed(1)+'%  HNR:'+r.hnrDb.toFixed(1)+'dB  抑揚:'+r.intonationSemitones.toFixed(1)+'st',W/2,188);
+  ctx.fillText('基音:'+Math.round(r.meanPitch)+'Hz  Jitter:'+r.jitter.toFixed(2)+'%  Shimmer:'+r.shimmer.toFixed(1)+'dB  抑揚:'+r.intonationSemitones.toFixed(1)+'st',W/2,188);
   const barX=80,barW=W-160,barH=15,barGap=20,startY=210;
   const maxR=Math.max(...r.harmonicRatios,0.01);
   r.harmonicRatios.slice(0,8).forEach((ratio,h)=>{
