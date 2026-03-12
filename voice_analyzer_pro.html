@@ -648,16 +648,31 @@ async function analyzeAudio(){
   }
 
   // --- 11. スコア計算（6軸）---
-  // 基音スコア：85〜110Hzが満点、それ以外は緩やかに減点
-  const pitchScore=Math.max(0,Math.min(100,Math.round(
-    refinedPitch<60  ? 30 :
-    refinedPitch<=85 ? 30+(refinedPitch-60)/25*70 :
-    refinedPitch<=110? 100 :
-    refinedPitch<=180? 100-(refinedPitch-110)/70*30 :
-    refinedPitch<=280? 70-(refinedPitch-180)/100*30 :
-    refinedPitch<=400? 40-(refinedPitch-280)/120*40 :
-    0
-  )));
+  // --- 男女自動判定（165Hz境界）---
+  const isFemale = refinedPitch >= 165;
+  const genderLabel = isFemale ? '女性' : '男性';
+
+  // 基音スコア：男女別基準
+  // 男性：85〜130Hz満点、女性：180〜260Hz満点
+  const pitchScore = isFemale
+    ? Math.max(0,Math.min(100,Math.round(
+        refinedPitch < 130 ? 30 :
+        refinedPitch <= 165 ? 30+(refinedPitch-130)/35*40 :
+        refinedPitch <= 180 ? 70+(refinedPitch-165)/15*30 :
+        refinedPitch <= 260 ? 100 :
+        refinedPitch <= 350 ? 100-(refinedPitch-260)/90*35 :
+        refinedPitch <= 450 ? 65-(refinedPitch-350)/100*40 :
+        25
+      )))
+    : Math.max(0,Math.min(100,Math.round(
+        refinedPitch < 60  ? 30 :
+        refinedPitch <= 85 ? 30+(refinedPitch-60)/25*70 :
+        refinedPitch <= 130? 100 :
+        refinedPitch <= 180? 100-(refinedPitch-130)/50*30 :
+        refinedPitch <= 280? 70-(refinedPitch-180)/100*30 :
+        refinedPitch <= 400? 40-(refinedPitch-280)/120*40 :
+        0
+      )));
   const richScore=Math.max(0,Math.min(100,Math.round(harmonicRichness*200)));
   // Singer's Formantスコア：分母が200〜4kHzになったので閾値調整
   // 50%以上→100点、30%→70点、15%→40点、<5%→0点
@@ -687,15 +702,19 @@ async function analyzeAudio(){
 
   // --- 判定 ---
   let vClass,vIcon,vTitle,vDesc;
-  if(totalScore>=80){vClass='good';vIcon='🎙️';vTitle='いい声認定！';vDesc='声の全指標が高水準です。低音・倍音・安定性・クリアさが揃った、本格的ないい声の持ち主です。';}
+  if(totalScore>=80){vClass='good';vIcon='🎙️';vTitle='いい声認定！';vDesc='声の全指標が高水準です。'+genderLabel+'らしい豊かな倍音と安定感を持った、本格的ないい声の持ち主です。';}
   else if(totalScore>=65){vClass='good';vIcon='✨';vTitle='かなりいい声！';vDesc='ほとんどの指標が優秀です。あと一歩でトップクラスの声になれます。';}
   else if(totalScore>=50){vClass='warn';vIcon='🎶';vTitle='惜しい！もう一息';vDesc='声の素地はあります。弱い指標を重点的にトレーニングしましょう。';}
   else if(totalScore>=30){vClass='warn';vIcon='📊';vTitle='伸びしろあり';vDesc='いくつかの指標で改善の余地があります。発声練習で大きく伸びる可能性があります。';}
   else{vClass='bad';vIcon='🔈';vTitle='まだまだこれから';vDesc='録音環境の見直しと発声練習を始めましょう。継続的なトレーニングで改善できます。';}
 
-  // --- アドバイス生成 ---
+  // --- アドバイス生成（男女別）---
   const advices=[];
-  if(pitchScore<60) advices.push('基音が高め：腹式呼吸を意識して、胸に響かせるチェストボイスを鍛えましょう');
+  if(pitchScore<60){
+    advices.push(isFemale
+      ? '基音の調整：口腔内を広く開けて共鳴させ、胸声と頭声のバランスを意識しましょう'
+      : '基音が高め：腹式呼吸を意識して、胸に響かせるチェストボイスを鍛えましょう');
+  }
   if(richScore<60) advices.push('倍音が少なめ：口腔内を広く保ち、口角を少し上げて発声すると倍音が豊かになります');
   if(formantScore<60) advices.push('声のハリ不足：ハミング練習で2〜4kHz帯の倍音を強化できます');
   if(stabilityScore<60) advices.push('声の安定性：腹筋を使った安定した息の流れを意識し、声の揺れを減らしましょう');
@@ -709,6 +728,7 @@ async function analyzeAudio(){
     totalScore,pitchScore,richScore,formantScore,flickerScore,stabilityScore,hnrScore,
     flickerSlope,meanPitch:refinedPitch,harmonicRatios,sfRatio,harmonicRichness,
     jitter,shimmer,hnrDb,purity,intonationSemitones,spectralTilt,
+    isFemale,genderLabel,
     vClass,vTitle,vIcon,vDesc,
     frames:pitchValues.length,spectrum,half,binHz,sampleRate,subHarmonics
   };
@@ -759,17 +779,24 @@ function displayResults(r){
 
   // メトリクス
   const pitch=r.meanPitch;
+  const genderBadge = r.isFemale ? '👩 女性基準' : '👨 男性基準';
   let pitchComment='';
-  if(pitch<85)pitchComment='男性でも極めて低い域';
-  else if(pitch<110)pitchComment='男性・低め';
-  else if(pitch<150)pitchComment='男性・平均的';
-  else if(pitch<165)pitchComment='男性/女性 境界域';
-  else if(pitch<210)pitchComment='女性・低め';
-  else if(pitch<280)pitchComment='女性・平均的';
-  else pitchComment='女性・高め';
+  if(r.isFemale){
+    if(pitch<165) pitchComment='女性・低め';
+    else if(pitch<210) pitchComment='女性・低め';
+    else if(pitch<260) pitchComment='女性・平均的';
+    else if(pitch<320) pitchComment='女性・高め';
+    else pitchComment='女性・かなり高め';
+  } else {
+    if(pitch<85)  pitchComment='男性・極めて低い';
+    else if(pitch<110) pitchComment='男性・低め';
+    else if(pitch<150) pitchComment='男性・平均的';
+    else if(pitch<165) pitchComment='男性・やや高め';
+    else pitchComment='男性・高め';
+  }
   document.getElementById('metPitch').textContent=Math.round(r.meanPitch)+' Hz';
   document.getElementById('metPitch').className='metric-value '+cc(r.pitchScore);
-  document.getElementById('metPitchSub').textContent='Hz — '+pitchComment;
+  document.getElementById('metPitchSub').textContent=genderBadge+' — '+pitchComment;
   document.getElementById('metHRatio').textContent=(r.harmonicRichness*100).toFixed(1)+'%';
   document.getElementById('metHRatio').className='metric-value '+cc(r.richScore);
   document.getElementById('metFormant').textContent=(r.sfRatio*100).toFixed(1)+'%';
