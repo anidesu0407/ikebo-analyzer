@@ -443,37 +443,91 @@ async function analyzeAudio(){
   const raw=audioBuffer.getChannelData(0);
   const sampleRate=audioBuffer.sampleRate;
 
-  // --- 1. FFT ---
+  // ============================================================
+  // 前処理①: DC offset除去 + 正規化 + ハイパスフィルタ(80Hz)
+  // ============================================================
+  const cleaned=new Float32Array(raw.length);
+  // DC除去
+  let dcSum=0;
+  for(let i=0;i<raw.length;i++) dcSum+=raw[i];
+  const dcOffset=dcSum/raw.length;
+  for(let i=0;i<raw.length;i++) cleaned[i]=raw[i]-dcOffset;
+  // 正規化
+  let maxAmp=0;
+  for(let i=0;i<cleaned.length;i++) if(Math.abs(cleaned[i])>maxAmp) maxAmp=Math.abs(cleaned[i]);
+  if(maxAmp>0) for(let i=0;i<cleaned.length;i++) cleaned[i]/=maxAmp;
+  // ハイパスフィルタ（80Hz、1次IIRフィルタ）
+  const hpAlpha=1/(1+2*Math.PI*(80/sampleRate));
+  const hpData=new Float32Array(cleaned.length);
+  hpData[0]=cleaned[0];
+  for(let i=1;i<cleaned.length;i++) hpData[i]=hpAlpha*(hpData[i-1]+cleaned[i]-cleaned[i-1]);
+
+  // ============================================================
+  // 前処理②: 安定区間抽出（中間20%〜80%）
+  // ============================================================
+  const stableStart=Math.floor(hpData.length*0.20);
+  const stableEnd=Math.floor(hpData.length*0.80);
+  const stableData=hpData.slice(stableStart,stableEnd);
+
+  // --- 1. FFT（安定区間を使用）---
   const maxSamples=65536;
-  const useLen=Math.min(raw.length,maxSamples);
+  const useLen=Math.min(stableData.length,maxSamples);
   const N=nextPow2(useLen);
   const padded=new Float32Array(N);
-  const fadeLen=Math.floor(sampleRate*0.2);
   for(let i=0;i<useLen;i++){
-    const fade=i<fadeLen?i/fadeLen:1;
     const w=0.5*(1-Math.cos(2*Math.PI*i/(useLen-1)));
-    padded[i]=raw[i]*w*fade;
+    padded[i]=stableData[i]*w;
   }
   const spectrum=fftMagnitude(padded);
   const half=Math.floor(N/2);
   const binHz=sampleRate/N;
 
-  // --- 2. フレームごと自己相関→中央値ピッチ ---
+  // --- 2. フレームごと自己相関 + Voiced Frame Detection ---
   const frameSize=4096,hopSize=512;
-  const minLag=Math.floor(sampleRate/400),maxLag=Math.floor(sampleRate/80);
+  const minLag=Math.floor(sampleRate/400),maxLag=Math.floor(sampleRate/70);
   const pitchValues=[];
   const rmsValues=[];
-  for(let offset=0;offset+frameSize<raw.length;offset+=hopSize){
-    const frame=raw.slice(offset,offset+frameSize);
+
+  // RMS全体の中央値を求めてエネルギー閾値を設定
+  const allRms=[];
+  for(let offset=0;offset+frameSize<stableData.length;offset+=hopSize){
+    const frame=stableData.slice(offset,offset+frameSize);
     let rms=0;for(let i=0;i<frameSize;i++)rms+=frame[i]*frame[i];
-    rms=Math.sqrt(rms/frameSize);if(rms<0.001)continue;
+    allRms.push(Math.sqrt(rms/frameSize));
+  }
+  const sortedRms=[...allRms].sort((a,b)=>a-b);
+  const medianRms=sortedRms[Math.floor(sortedRms.length/2)]||0.01;
+  // voiced判定閾値：中央値RMSの20%以上かつ絶対値0.005以上
+  const energyThreshold=Math.max(medianRms*0.20, 0.005);
+
+  for(let offset=0;offset+frameSize<stableData.length;offset+=hopSize){
+    const frame=stableData.slice(offset,offset+frameSize);
+    let rms=0;for(let i=0;i<frameSize;i++)rms+=frame[i]*frame[i];
+    rms=Math.sqrt(rms/frameSize);
+
+    // Voiced Frame Detection: エネルギーが低いフレームを除外
+    if(rms<energyThreshold) continue;
+
     const ac=new Float32Array(maxLag+1);
     for(let lag=minLag;lag<=maxLag;lag++){
       let s=0;for(let i=0;i<frameSize-maxLag;i++)s+=frame[i]*frame[i+lag];ac[lag]=s;
     }
     let bestLag=minLag,bestVal=ac[minLag];
     for(let lag=minLag+1;lag<=maxLag;lag++){if(ac[lag]>bestVal){bestVal=ac[lag];bestLag=lag;}}
-    if(bestVal>0){pitchValues.push(sampleRate/bestLag);rmsValues.push(rms);}
+
+    const candPitch=sampleRate/bestLag;
+
+    // Voiced Frame Detection: ピッチ範囲外を除外（70〜400Hz）
+    if(candPitch<70||candPitch>400) continue;
+
+    // 自己相関の信頼度チェック（正規化相関係数）
+    let power=0;for(let i=0;i<frameSize-maxLag;i++)power+=frame[i]*frame[i];
+    const normalizedAc=power>0?bestVal/power:0;
+    // 信頼度0.3未満は無声と判断
+    if(normalizedAc<0.3) continue;
+
+    pitchValues.push(candPitch);
+    rmsValues.push(rms);
   }
   if(pitchValues.length<3){
     document.getElementById('loadingCard').classList.add('hidden');
