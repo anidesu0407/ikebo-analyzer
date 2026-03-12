@@ -248,13 +248,13 @@
           <div class="metric-label">Jitter（ピッチ変動）</div>
           <div class="metric-value good" id="metJitter">−</div>
           <div class="metric-sub">小さいほど安定</div>
-          <div class="metric-desc">声帯振動の<b>周期のブレ</b>。0.5%以下がプロレベル。大きいと「声が揺れている」印象になります。</div>
+          <div class="metric-desc">声帯振動の<b>周期のブレ</b>。ブラウザ計測では1%以下なら安定。大きいと「声が揺れている」印象になります。</div>
         </div>
         <div class="metric">
           <div class="metric-label">Shimmer（音量変動）</div>
           <div class="metric-value good" id="metShimmer">−</div>
           <div class="metric-sub">小さいほど安定</div>
-          <div class="metric-desc">声の<b>音量のブレ</b>。0.5dB以下がプロレベル。大きいと声にムラがある印象になります。</div>
+          <div class="metric-desc">声の<b>音量のブレ</b>。ブラウザ計測では1dB以下なら安定。大きいと声にムラがある印象になります。</div>
         </div>
         <div class="metric">
           <div class="metric-label">抑揚の幅</div>
@@ -598,10 +598,14 @@ async function analyzeAudio(){
     rapSum+=Math.abs(periods[i]-avg3);
   }
   const jitter=periods.length>2?(rapSum/(periods.length-2))/periodMean*100:0;
-  const jitterScore=Math.max(0,Math.min(100,Math.round(100-jitter*32)));
+  // ブラウザ基準: 1%以下→100〜70点、2%→40点、3%以上→0点
+  const jitterScore=Math.max(0,Math.min(100,Math.round(
+    jitter<1.0 ? 100-jitter*30 :
+    jitter<2.0 ? 70-(jitter-1.0)*30 :
+    jitter<3.0 ? 40-(jitter-2.0)*40 : 0
+  )));
 
   // --- 8. Shimmer（音量変動）---
-  // RMS列から外れ値除去後、dBシマー計算
   const rmsMedian=rmsValues.slice().sort((a,b)=>a-b)[Math.floor(rmsValues.length/2)];
   const validRms=rmsValues.filter(r=>r>rmsMedian*0.2&&r<rmsMedian*3);
   let shimmerDbSum=0;
@@ -609,8 +613,12 @@ async function analyzeAudio(){
     shimmerDbSum+=Math.abs(20*Math.log10(Math.max(1e-10,validRms[i])/Math.max(1e-10,validRms[i-1])));
   }
   const shimmer=validRms.length>1?shimmerDbSum/(validRms.length-1):0;
-  // スコア: <0.5dB→100, 1dB→80, 2dB→55, 3dB→30, >4dB→0
-  const shimmerScore=Math.max(0,Math.min(100,Math.round(100-shimmer*25)));
+  // ブラウザ基準: 1dB以下→100〜70点、2dB→40点、3dB以上→0点
+  const shimmerScore=Math.max(0,Math.min(100,Math.round(
+    shimmer<1.0 ? 100-shimmer*30 :
+    shimmer<2.0 ? 70-(shimmer-1.0)*30 :
+    shimmer<3.0 ? 40-(shimmer-2.0)*40 : 0
+  )));
 
   // 安定性スコア（JitterとShimmerの平均）
   const stabilityScore=Math.round((jitterScore+shimmerScore)/2);
@@ -768,14 +776,16 @@ function displayResults(r){
   document.getElementById('metPitch').textContent=Math.round(r.meanPitch)+' Hz';
   document.getElementById('metPitch').className='metric-value '+cc(r.pitchScore);
   document.getElementById('metPitchSub').textContent=genderBadge+' — '+pitchComment;
-  document.getElementById('metHRatio').textContent=(r.harmonicRichness*100).toFixed(1)+'%';
+  document.getElementById('metHRatio').textContent=Math.min(100,r.harmonicRichness*100).toFixed(1)+'%';
   document.getElementById('metHRatio').className='metric-value '+cc(r.richScore);
   document.getElementById('metSlope').textContent=r.flickerSlope.toFixed(2);
   document.getElementById('metSlope').className='metric-value '+flickerCC(r.flickerSlope);
+  // Jitter: ブラウザ基準 1%以下→緑、2%以下→黄、それ以上→赤
   document.getElementById('metJitter').textContent=r.jitter.toFixed(3)+'%';
-  document.getElementById('metJitter').className='metric-value '+(r.jitter<0.5?'good':r.jitter<1?'warn':'bad');
+  document.getElementById('metJitter').className='metric-value '+(r.jitter<1.0?'good':r.jitter<2.0?'warn':'bad');
+  // Shimmer: ブラウザ基準 1dB以下→緑、2dB以下→黄、それ以上→赤
   document.getElementById('metShimmer').textContent=r.shimmer.toFixed(2)+' dB';
-  document.getElementById('metShimmer').className='metric-value '+(r.shimmer<0.5?'good':r.shimmer<1.5?'warn':'bad');
+  document.getElementById('metShimmer').className='metric-value '+(r.shimmer<1.0?'good':r.shimmer<2.0?'warn':'bad');
   document.getElementById('metIntonation').textContent=r.intonationSemitones.toFixed(1)+' st';
   document.getElementById('metIntonation').className='metric-value '+(r.intonationSemitones>=3&&r.intonationSemitones<=10?'good':r.intonationSemitones>=1?'warn':'bad');
 
