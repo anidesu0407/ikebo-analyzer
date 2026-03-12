@@ -31,6 +31,9 @@
   .mic-status{font-size:.88rem;color:var(--text-dim);margin-bottom:6px;}
   .mic-timer{font-family:'Space Mono',monospace;font-size:1.3rem;color:var(--accent2);display:none;}
   .mic-timer.show{display:block;}
+  .mic-countdown{font-family:'Space Mono',monospace;font-size:3rem;font-weight:700;color:var(--accent);display:none;line-height:1;text-shadow:var(--glow);}
+  .mic-countdown.show{display:block;animation:countPop .4s cubic-bezier(.34,1.56,.64,1);}
+  @keyframes countPop{0%{transform:scale(1.6);opacity:0;}100%{transform:scale(1);opacity:1;}}
   .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:8px;border:none;cursor:pointer;font-family:'Space Mono',monospace;font-size:.78rem;letter-spacing:.05em;transition:all .2s ease;}
   .btn-primary{background:var(--accent);color:#0a0c10;font-weight:700;}
   .btn-primary:hover{background:#6fffc8;box-shadow:var(--glow);transform:translateY(-1px);}
@@ -107,6 +110,35 @@
   .advice-text{font-size:.88rem;color:var(--text-dim);line-height:1.8;white-space:pre-line;}
   .metric-desc{font-size:.7rem;color:#4a5568;margin-top:5px;line-height:1.5;border-top:1px solid #1a1e28;padding-top:5px;}
   .metric-desc b{color:#6a7588;}
+
+  /* キャラクター判定 */
+  .voice-type-box{border-radius:14px;padding:18px 22px;margin-bottom:20px;position:relative;overflow:hidden;}
+  .voice-type-box::before{content:'';position:absolute;inset:0;opacity:.06;background:var(--vt-color);pointer-events:none;}
+  .voice-type-header{display:flex;align-items:center;gap:14px;margin-bottom:10px;}
+  .voice-type-icon{font-size:2.2rem;flex-shrink:0;filter:drop-shadow(0 0 8px var(--vt-color));}
+  .voice-type-name{font-family:'Space Mono',monospace;font-size:1.1rem;font-weight:700;color:var(--vt-color);letter-spacing:.05em;}
+  .voice-type-tag{display:inline-block;font-size:.68rem;font-family:'Space Mono',monospace;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:2px 8px;margin-left:8px;color:var(--text-dim);vertical-align:middle;}
+  .voice-type-desc{font-size:.88rem;color:var(--text-dim);line-height:1.8;}
+  .voice-type-traits{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+  .vt-trait{font-size:.7rem;font-family:'Space Mono',monospace;padding:3px 10px;border-radius:20px;border:1px solid;opacity:.85;}
+
+  /* リアルタイムビジュアライザー */
+  .viz-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:720px;margin-bottom:20px;}
+  .viz-controls{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .viz-btn{padding:7px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'Space Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
+  .viz-btn:hover{border-color:var(--accent3);color:var(--accent3);}
+  .viz-btn.active{background:rgba(255,107,107,.12);border-color:var(--accent2);color:var(--accent2);}
+  .viz-btn.frozen{background:rgba(126,184,255,.12);border-color:var(--accent3);color:var(--accent3);}
+  .viz-status{font-family:'Space Mono',monospace;font-size:.68rem;color:var(--text-dim);margin-left:auto;}
+  .viz-status.live{color:var(--accent2);}
+  .viz-status.live::before{content:'● ';animation:blink .8s ease-in-out infinite;}
+  .viz-status.frozen-label{color:var(--accent3);}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+  .viz-canvas-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media(max-width:500px){.viz-canvas-row{grid-template-columns:1fr;}}
+  .viz-canvas-wrap{position:relative;}
+  .viz-canvas-label{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text-dim);margin-bottom:5px;}
+  .viz-canvas{width:100%;height:80px;border-radius:8px;background:#080a0e;display:block;}
 </style>
 </head>
 <body>
@@ -146,6 +178,7 @@
     <div class="mic-zone">
       <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎙️</button>
       <div class="mic-status" id="micStatus">ボタンを押して録音開始</div>
+      <div class="mic-countdown" id="micCountdown">3</div>
       <div class="mic-timer" id="micTimer">0:00</div>
     </div>
     <div class="controls" style="justify-content:center;">
@@ -153,6 +186,27 @@
     </div>
   </div>
   <audio id="audioPlayer" class="audio-player hidden" controls></audio>
+</div>
+
+<!-- リアルタイムビジュアライザー -->
+<div class="viz-card" id="vizCard">
+  <div class="card-title">🎛️ リアルタイム ビジュアライザー</div>
+  <div class="viz-controls">
+    <button class="viz-btn" id="vizStartBtn" onclick="startViz()">▶ マイク起動</button>
+    <button class="viz-btn hidden" id="vizStopBtn" onclick="stopViz()">■ 停止</button>
+    <button class="viz-btn hidden" id="vizFreezeBtn" onclick="toggleFreeze()">❄ フリーズ</button>
+    <span class="viz-status" id="vizStatus">マイクを起動すると波形が表示されます</span>
+  </div>
+  <div class="viz-canvas-row">
+    <div class="viz-canvas-wrap">
+      <div class="viz-canvas-label">WAVEFORM</div>
+      <canvas class="viz-canvas" id="vizWaveCanvas"></canvas>
+    </div>
+    <div class="viz-canvas-wrap">
+      <div class="viz-canvas-label">SPECTRUM</div>
+      <canvas class="viz-canvas" id="vizSpecCanvas"></canvas>
+    </div>
+  </div>
 </div>
 
 <!-- 波形 -->
@@ -175,6 +229,19 @@
   <div id="verdictBox" class="verdict good">
     <div class="verdict-icon" id="verdictIcon">✨</div>
     <div class="verdict-text"><h3 id="verdictTitle">判定</h3><p id="verdictDesc">説明</p></div>
+  </div>
+
+  <!-- キャラクター判定 -->
+  <div class="voice-type-box" id="voiceTypeBox" style="--vt-color:#4ff0b0;border:1px solid rgba(79,240,176,.25);">
+    <div class="voice-type-header">
+      <span class="voice-type-icon" id="vtIcon">🎙️</span>
+      <div>
+        <div class="voice-type-name" id="vtName">−</div>
+        <span class="voice-type-tag" id="vtTag">−</span>
+      </div>
+    </div>
+    <div class="voice-type-desc" id="vtDesc">−</div>
+    <div class="voice-type-traits" id="vtTraits"></div>
   </div>
 
   <!-- スコアゲージ -->
@@ -301,7 +368,7 @@
 // ============================================================
 // 状態
 // ============================================================
-let audioBuffer=null,audioCtx=null,mediaRecorder=null,recordedChunks=[],timerInterval=null,recordSeconds=0;
+let audioBuffer=null,audioCtx=null,mediaRecorder=null,recordedChunks=[],timerInterval=null,recordSeconds=0,countdownInterval=null,pendingStream=null;
 let lastResult=null;
 function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
 
@@ -309,6 +376,16 @@ function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAu
 // タブ切り替え（入力）
 // ============================================================
 function switchInputTab(mode){
+  // カウントダウン中ならキャンセル
+  if(countdownInterval!==null){
+    clearInterval(countdownInterval);
+    countdownInterval=null;
+    if(pendingStream){pendingStream.getTracks().forEach(t=>t.stop());pendingStream=null;}
+    document.getElementById('micCountdown').classList.remove('show');
+    document.getElementById('micCountdown').textContent='3';
+    document.getElementById('micBtn').classList.remove('recording');
+    document.getElementById('micStatus').textContent='ボタンを押して録音開始';
+  }
   document.getElementById('tabFile').classList.toggle('active',mode==='file');
   document.getElementById('tabMic').classList.toggle('active',mode==='mic');
   document.getElementById('fileMode').classList.toggle('hidden',mode!=='file');
@@ -347,12 +424,13 @@ async function loadFile(file){
 analyzeBtn.addEventListener('click',()=>{if(audioBuffer)analyzeAudio();});
 
 // ============================================================
-// マイク録音
+// マイク録音（カウントダウン付き）
 // ============================================================
+
 async function toggleRecording(){
+  // 録音中→停止
   if(mediaRecorder&&mediaRecorder.state==='recording'){
     mediaRecorder.stop();
-    // マイクのインジケータを消すためにstreamトラックを停止
     if(mediaRecorder.stream) mediaRecorder.stream.getTracks().forEach(t=>t.stop());
     clearInterval(timerInterval);
     document.getElementById('micBtn').classList.remove('recording');
@@ -360,33 +438,85 @@ async function toggleRecording(){
     document.getElementById('micTimer').classList.remove('show');
     return;
   }
+  // カウントダウン中→キャンセル（マイクも解放）
+  if(countdownInterval!==null){
+    clearInterval(countdownInterval);
+    countdownInterval=null;
+    if(pendingStream){pendingStream.getTracks().forEach(t=>t.stop());pendingStream=null;}
+    document.getElementById('micBtn').classList.remove('recording');
+    document.getElementById('micStatus').textContent='ボタンを押して録音開始';
+    document.getElementById('micCountdown').classList.remove('show');
+    document.getElementById('micCountdown').textContent='3';
+    return;
+  }
+
+  // マイク取得
+  let stream;
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    recordedChunks=[];recordSeconds=0;
-    mediaRecorder=new MediaRecorder(stream);
-    mediaRecorder.ondataavailable=e=>recordedChunks.push(e.data);
-    mediaRecorder.onstop=async()=>{
-      const blob=new Blob(recordedChunks,{type:'audio/webm'});
-      const url=URL.createObjectURL(blob);
-      const player=document.getElementById('audioPlayer');
-      player.src=url;player.classList.remove('hidden');
-      try{
-        const ab=await blob.arrayBuffer();
-        audioBuffer=await getCtx().decodeAudioData(ab);
-        document.getElementById('micAnalyzeBtn').disabled=false;
-        drawWaveform();
-      }catch(e){alert('録音データのデコードに失敗しました。もう一度録音してください。');}
-    };
-    mediaRecorder.start();
-    document.getElementById('micBtn').classList.add('recording');
-    document.getElementById('micStatus').textContent='録音中… もう一度押すと停止';
-    document.getElementById('micTimer').classList.add('show');
-    timerInterval=setInterval(()=>{
-      recordSeconds++;
-      const m=Math.floor(recordSeconds/60),s=recordSeconds%60;
-      document.getElementById('micTimer').textContent=m+':'+(s<10?'0':'')+s;
-    },1000);
-  }catch(e){alert('マイクへのアクセスが許可されていません');}
+    stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    pendingStream=stream; // キャンセル時に解放できるよう保持
+  }catch(e){
+    alert('マイクへのアクセスが許可されていません');
+    return;
+  }
+
+  // カウントダウン開始（3→2→1）
+  recordedChunks=[];recordSeconds=0;
+  let count=3;
+  const cdEl=document.getElementById('micCountdown');
+  const statusEl=document.getElementById('micStatus');
+  const micBtnEl=document.getElementById('micBtn');
+
+  micBtnEl.classList.add('recording'); // ボタンを録音色にしてカウント中を示す
+  statusEl.textContent='準備してください… （もう一度押すとキャンセル）';
+  cdEl.textContent=count;
+  cdEl.classList.add('show');
+  // アニメーションを再トリガーするため一度外して付け直す
+  void cdEl.offsetWidth;
+
+  countdownInterval=setInterval(()=>{
+    count--;
+    if(count<=0){
+      clearInterval(countdownInterval);
+      countdownInterval=null;
+      pendingStream=null; // 録音開始するのでpending解除
+      cdEl.classList.remove('show');
+      cdEl.textContent='3';
+      startActualRecording(stream);
+    } else {
+      // アニメーション再トリガー
+      cdEl.classList.remove('show');
+      void cdEl.offsetWidth;
+      cdEl.textContent=count;
+      cdEl.classList.add('show');
+    }
+  },1000);
+}
+
+function startActualRecording(stream){
+  mediaRecorder=new MediaRecorder(stream);
+  mediaRecorder.ondataavailable=e=>recordedChunks.push(e.data);
+  mediaRecorder.onstop=async()=>{
+    const blob=new Blob(recordedChunks,{type:'audio/webm'});
+    const url=URL.createObjectURL(blob);
+    const player=document.getElementById('audioPlayer');
+    player.src=url;player.classList.remove('hidden');
+    try{
+      const ab=await blob.arrayBuffer();
+      audioBuffer=await getCtx().decodeAudioData(ab);
+      document.getElementById('micAnalyzeBtn').disabled=false;
+      drawWaveform();
+    }catch(e){alert('録音データのデコードに失敗しました。もう一度録音してください。');}
+  };
+  mediaRecorder.start();
+  document.getElementById('micBtn').classList.add('recording');
+  document.getElementById('micStatus').textContent='録音中… もう一度押すと停止';
+  document.getElementById('micTimer').classList.add('show');
+  timerInterval=setInterval(()=>{
+    recordSeconds++;
+    const m=Math.floor(recordSeconds/60),s=recordSeconds%60;
+    document.getElementById('micTimer').textContent=m+':'+(s<10?'0':'')+s;
+  },1000);
 }
 document.getElementById('micAnalyzeBtn').addEventListener('click',()=>{if(audioBuffer)analyzeAudio();});
 
@@ -718,12 +848,15 @@ async function analyzeAudio(){
   if(advices.length===0) advices.push('全指標が良好です！現状を維持しながら、さらなる表現の幅を広げていきましょう');
   document.getElementById('adviceText').textContent=advices.join('。\n');
 
+  // --- キャラクター判定 ---
+  const voiceType=detectVoiceType({safePitch,isFemale,richScore,detectedCount,harmonicRichness,stabilityScore,jitter,shimmer,intonationScore,intonationSemitones,totalScore});
+
   // --- 結果保存 ---
   lastResult={
     totalScore,richScore,countScore,strengthScore,flickerScore,stabilityScore,intonationScore,
     flickerSlope,meanPitch:safePitch,harmonicRatios,harmonicRichness,detectedCount,
     jitter,shimmer,intonationSemitones,
-    isFemale,genderLabel,
+    isFemale,genderLabel,voiceType,
     vClass,vTitle,vIcon,vDesc,
     frames:pitchValues.length,spectrum,half,binHz,sampleRate,subHarmonics
   };
@@ -809,6 +942,9 @@ function displayResults(r){
 
   // レーダーチャート
   requestAnimationFrame(()=>drawRadar(r));
+
+  // キャラクター判定
+  if(r.voiceType) renderVoiceType(r.voiceType);
 
   // 倍音バー
   buildHarmonicBars(r.harmonicRatios);
@@ -1079,7 +1215,246 @@ function tweetResult(){
 }
 
 // ============================================================
-// FFTユーティリティ
+// キャラクター判定
+// ============================================================
+const VOICE_TYPES=[
+  {
+    id:'legend',
+    name:'レジェンドボイス',
+    icon:'👑',
+    color:'#ffd166',
+    tag:'最高峰',
+    desc:'倍音・安定性・抑揚のすべてが高次元で揃った、まさに「いい声」の理想形。聴く人を引き込む圧倒的な声の持ち主です。',
+    traits:['倍音豊富','超安定','自然なゆらぎ','表現力◎'],
+    traitColor:'#ffd166',
+    match:({totalScore})=>totalScore>=82,
+  },
+  {
+    id:'deep_rich',
+    name:'ダークリッチボイス',
+    icon:'🌑',
+    color:'#7eb8ff',
+    tag:'低音×倍音',
+    desc:'低めのピッチに豊かな倍音が乗った、深みと包容力のある声。落ち着いた存在感があり、ナレーション向きです。',
+    traits:['低音域','倍音豊富','落ち着き','安定感'],
+    traitColor:'#7eb8ff',
+    match:({safePitch,richScore,stabilityScore})=>safePitch<130&&richScore>=60&&stabilityScore>=55,
+  },
+  {
+    id:'bright_tenor',
+    name:'ブライトテノール',
+    icon:'☀️',
+    color:'#ffd166',
+    tag:'高倍音×明瞭',
+    desc:'明るく通りのいい声質。倍音が豊かで抜けがよく、エネルギーに満ちた印象を与えます。アナウンス・話声に向いています。',
+    traits:['中高音域','倍音◎','明瞭感','エネルギッシュ'],
+    traitColor:'#ffd166',
+    match:({safePitch,richScore,intonationScore})=>safePitch>=130&&safePitch<230&&richScore>=60&&intonationScore>=50,
+  },
+  {
+    id:'silky',
+    name:'シルキーボイス',
+    icon:'🪶',
+    color:'#c084fc',
+    tag:'滑らか×安定',
+    desc:'声のブレが非常に少なく、なめらかで心地よい声質。長時間聴いても疲れない、耳触りのいい声です。',
+    traits:['超安定','滑らか','Jitter低','Shimmer低'],
+    traitColor:'#c084fc',
+    match:({stabilityScore,jitter,shimmer})=>stabilityScore>=75&&jitter<0.8&&shimmer<0.8,
+  },
+  {
+    id:'emotional',
+    name:'エモーショナルボイス',
+    icon:'🎭',
+    color:'#ff6b6b',
+    tag:'表現力×抑揚',
+    desc:'豊かな抑揚と感情表現が特徴の声。聴く人の感情を揺さぶる、表現力の高い声の持ち主です。',
+    traits:['抑揚豊か','感情表現◎','表現力高'],
+    traitColor:'#ff6b6b',
+    match:({intonationSemitones,intonationScore,richScore})=>intonationSemitones>=6&&intonationScore>=65&&richScore>=45,
+  },
+  {
+    id:'natural',
+    name:'ナチュラルボイス',
+    icon:'🌿',
+    color:'#4ff0b0',
+    tag:'バランス型',
+    desc:'特定の突出した特徴はないものの、全体的にバランスの取れた聴きやすい声。日常会話・配信に向いています。',
+    traits:['バランス型','聴きやすい','自然体'],
+    traitColor:'#4ff0b0',
+    match:({totalScore,richScore,stabilityScore})=>totalScore>=50&&richScore>=40&&stabilityScore>=45,
+  },
+  {
+    id:'husky',
+    name:'ハスキーボイス',
+    icon:'🔥',
+    color:'#ffa040',
+    tag:'独特の質感',
+    desc:'ざらつきのある独特の声質。Shimmerが高めでも個性として際立ちます。クセになる魅力的な声です。',
+    traits:['独特の質感','個性的','印象に残る'],
+    traitColor:'#ffa040',
+    match:({shimmer,richScore})=>shimmer>=1.5&&richScore>=35,
+  },
+  {
+    id:'developing',
+    name:'ポテンシャルボイス',
+    icon:'🌱',
+    color:'#8a9ab0',
+    tag:'伸びしろあり',
+    desc:'まだ声の特性が安定していませんが、トレーニング次第で大きく伸びるポテンシャルを秘めています。',
+    traits:['発展途上','練習で改善','可能性◎'],
+    traitColor:'#8a9ab0',
+    match:()=>true, // fallback
+  },
+];
+
+function detectVoiceType(params){
+  for(const vt of VOICE_TYPES){
+    if(vt.match(params)) return vt;
+  }
+  return VOICE_TYPES[VOICE_TYPES.length-1];
+}
+
+function renderVoiceType(vt){
+  const box=document.getElementById('voiceTypeBox');
+  box.style.setProperty('--vt-color',vt.color);
+  box.style.border='1px solid '+vt.color+'40';
+  document.getElementById('vtIcon').textContent=vt.icon;
+  document.getElementById('vtName').textContent=vt.name;
+  document.getElementById('vtTag').textContent=vt.tag;
+  document.getElementById('vtDesc').textContent=vt.desc;
+  const traitsEl=document.getElementById('vtTraits');
+  traitsEl.innerHTML='';
+  vt.traits.forEach(t=>{
+    const span=document.createElement('span');
+    span.className='vt-trait';
+    span.style.color=vt.traitColor;
+    span.style.borderColor=vt.traitColor+'55';
+    span.style.background=vt.traitColor+'12';
+    span.textContent=t;
+    traitsEl.appendChild(span);
+  });
+}
+
+// ============================================================
+// リアルタイムビジュアライザー
+// ============================================================
+let vizStream=null,vizAudioCtx=null,vizAnalyserWave=null,vizAnalyserSpec=null,vizAnimId=null,vizFrozen=false;
+
+function startViz(){
+  navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(stream=>{
+    vizStream=stream;
+    vizAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const src=vizAudioCtx.createMediaStreamSource(stream);
+
+    vizAnalyserWave=vizAudioCtx.createAnalyser();
+    vizAnalyserWave.fftSize=2048;
+    vizAnalyserSpec=vizAudioCtx.createAnalyser();
+    vizAnalyserSpec.fftSize=2048;
+    vizAnalyserSpec.smoothingTimeConstant=0.8;
+
+    src.connect(vizAnalyserWave);
+    src.connect(vizAnalyserSpec);
+
+    document.getElementById('vizStartBtn').classList.add('hidden');
+    document.getElementById('vizStopBtn').classList.remove('hidden');
+    document.getElementById('vizFreezeBtn').classList.remove('hidden');
+    const st=document.getElementById('vizStatus');
+    st.textContent='LIVE';
+    st.className='viz-status live';
+
+    vizFrozen=false;
+    drawViz();
+  }).catch(()=>alert('マイクへのアクセスが許可されていません'));
+}
+
+function stopViz(){
+  if(vizAnimId){cancelAnimationFrame(vizAnimId);vizAnimId=null;}
+  if(vizStream) vizStream.getTracks().forEach(t=>t.stop());
+  if(vizAudioCtx) vizAudioCtx.close();
+  vizStream=vizAudioCtx=vizAnalyserWave=vizAnalyserSpec=null;
+  vizFrozen=false;
+  document.getElementById('vizStartBtn').classList.remove('hidden');
+  document.getElementById('vizStopBtn').classList.add('hidden');
+  document.getElementById('vizFreezeBtn').classList.add('hidden');
+  document.getElementById('vizFreezeBtn').classList.remove('frozen');
+  const st=document.getElementById('vizStatus');
+  st.textContent='マイクを起動すると波形が表示されます';
+  st.className='viz-status';
+  // Canvasをクリア
+  ['vizWaveCanvas','vizSpecCanvas'].forEach(id=>{
+    const c=document.getElementById(id);
+    const ctx=c.getContext('2d');
+    ctx.fillStyle='#080a0e';ctx.fillRect(0,0,c.width,c.height);
+  });
+}
+
+function toggleFreeze(){
+  vizFrozen=!vizFrozen;
+  const btn=document.getElementById('vizFreezeBtn');
+  const st=document.getElementById('vizStatus');
+  if(vizFrozen){
+    btn.classList.add('frozen');
+    btn.textContent='▶ 再開';
+    st.textContent='FROZEN';
+    st.className='viz-status frozen-label';
+  } else {
+    btn.classList.remove('frozen');
+    btn.textContent='❄ フリーズ';
+    st.textContent='LIVE';
+    st.className='viz-status live';
+    if(!vizAnimId) drawViz();
+  }
+}
+
+function drawViz(){
+  if(vizFrozen){vizAnimId=null;return;}
+  vizAnimId=requestAnimationFrame(drawViz);
+
+  const dpr=devicePixelRatio||1;
+
+  // --- 波形 ---
+  const wc=document.getElementById('vizWaveCanvas');
+  const W=Math.max(1,wc.offsetWidth*dpr),H=80*dpr;
+  if(wc.width!==W||wc.height!==H){wc.width=W;wc.height=H;}
+  const wctx=wc.getContext('2d');
+  wctx.fillStyle='#080a0e';wctx.fillRect(0,0,W,H);
+  if(vizAnalyserWave){
+    const buf=new Float32Array(vizAnalyserWave.fftSize);
+    vizAnalyserWave.getFloatTimeDomainData(buf);
+    wctx.strokeStyle='#4ff0b0';wctx.lineWidth=1.5;wctx.beginPath();
+    const sliceW=W/buf.length;
+    for(let i=0;i<buf.length;i++){
+      const x=i*sliceW;
+      const y=(1-buf[i])/2*H;
+      i===0?wctx.moveTo(x,y):wctx.lineTo(x,y);
+    }
+    wctx.stroke();
+    // 中心線
+    wctx.strokeStyle='rgba(79,240,176,0.15)';wctx.lineWidth=1;wctx.beginPath();
+    wctx.moveTo(0,H/2);wctx.lineTo(W,H/2);wctx.stroke();
+  }
+
+  // --- スペクトル ---
+  const sc=document.getElementById('vizSpecCanvas');
+  if(sc.width!==W||sc.height!==H){sc.width=W;sc.height=H;}
+  const sctx=sc.getContext('2d');
+  sctx.fillStyle='#080a0e';sctx.fillRect(0,0,W,H);
+  if(vizAnalyserSpec){
+    const freqBuf=new Uint8Array(vizAnalyserSpec.frequencyBinCount);
+    vizAnalyserSpec.getByteFrequencyData(freqBuf);
+    const barW=Math.max(1,W/freqBuf.length*2);
+    const displayBins=Math.floor(freqBuf.length/2);
+    for(let i=0;i<displayBins;i++){
+      const x=(i/displayBins)*W;
+      const h=(freqBuf[i]/255)*H;
+      const hue=180+i/displayBins*60; // 水色→緑
+      sctx.fillStyle='hsl('+hue+',80%,55%)';
+      sctx.fillRect(x,H-h,barW,h);
+    }
+  }
+}
+
 // ============================================================
 function nextPow2(n){let p=1;while(p<n)p<<=1;return p;}
 function linReg(xs,ys){
