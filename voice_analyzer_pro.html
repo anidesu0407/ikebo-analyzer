@@ -596,6 +596,7 @@ async function analyzeAudio(){
   const stabilityScore=Math.round((jitterScore+shimmerScore)/2);
 
   // --- 9. 純音度（倍音エネルギー比率）でクリアさを計算 ---
+  let purity=0,hnrDb=0;
   {
     const pureMinBin=Math.floor(refinedPitch*0.8/binHz);
     const pureMaxBin=Math.min(Math.floor(8000/binHz),half-1);
@@ -612,9 +613,8 @@ async function analyzeAudio(){
       const hi=Math.min(pureMaxBin,hCenter+hw);
       for(let b=lo;b<=hi;b++) harmonicPow+=spectrum[b]*spectrum[b];
     }
-    // 表示は100%でクランプ（計算上100%超えは倍音が非常に強い声）
-    var purity=totalPow>0?Math.min(1,harmonicPow/totalPow):0;
-    var hnrDb=purity>0&&purity<1?10*Math.log10(purity/(1-purity)):0;
+    purity=totalPow>0?Math.min(1,harmonicPow/totalPow):0;
+    hnrDb=purity>0&&purity<1?10*Math.log10(purity/(1-purity)):0;
     hnrDb=Math.max(-5,Math.min(35,hnrDb));
   }
   // スコア: 純音度60%→100, 40%→80, 25%→55, 15%→30, <10%→0
@@ -628,7 +628,7 @@ async function analyzeAudio(){
   const intonationSemitones=trimmedP.length>1?12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]):0;
 
   // --- 10b. スペクトル傾斜（dB/octave）---
-  // 250Hz〜8kHzの8帯域で線形回帰（帯域を増やして安定化）
+  let spectralTilt=0;
   {
     const tiltBands=[
       [250,500],[500,1000],[1000,2000],[2000,4000],[4000,8000]
@@ -643,20 +643,20 @@ async function analyzeAudio(){
         tiltY.push(10*Math.log10(bandPow/count));
       }
     }
-    var spectralTilt=tiltX.length>=3?linReg(tiltX,tiltY).slope:0;
-    // -20〜+5dB/octの範囲でクランプ（正の値も許容）
+    if(tiltX.length>=3) spectralTilt=linReg(tiltX,tiltY).slope;
     spectralTilt=Math.max(-20,Math.min(5,spectralTilt));
   }
 
   // --- 11. スコア計算（6軸）---
-  // 基音スコア：85〜130Hzが満点、低すぎても高すぎても減点
+  // 基音スコア：85〜110Hzが満点、それ以外は緩やかに減点
   const pitchScore=Math.max(0,Math.min(100,Math.round(
-    refinedPitch<60  ? 40 :
-    refinedPitch<=85 ? 40+(refinedPitch-60)/25*60 :
-    refinedPitch<=130? 100 :
-    refinedPitch<=220? 100-(refinedPitch-130)/90*35 :
-    refinedPitch<=350? 65-(refinedPitch-220)/130*30 :
-    35-(refinedPitch-350)/150*35
+    refinedPitch<60  ? 30 :
+    refinedPitch<=85 ? 30+(refinedPitch-60)/25*70 :
+    refinedPitch<=110? 100 :
+    refinedPitch<=180? 100-(refinedPitch-110)/70*30 :
+    refinedPitch<=280? 70-(refinedPitch-180)/100*30 :
+    refinedPitch<=400? 40-(refinedPitch-280)/120*40 :
+    0
   )));
   const richScore=Math.max(0,Math.min(100,Math.round(harmonicRichness*200)));
   // Singer's Formantスコア：分母が200〜4kHzになったので閾値調整
