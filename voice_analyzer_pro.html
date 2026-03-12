@@ -519,15 +519,16 @@ async function analyzeAudio(){
   const pd=(pp-2*peakAmp+pn);
   const refinedPitch=(peakBin+(pd!==0?0.5*(pp-pn)/(-pd):0))*binHz;
 
-  // --- 3. 倍音エネルギー ---
+  // --- 3. 倍音エネルギー（各倍音のピーク振幅を使用）---
+  // 窓幅に依存しないようピーク値のみ取得
   const harmonicEnergies=[];
   for(let h=1;h<=12;h++){
     const centerHz=refinedPitch*h;
     const loHz=centerHz*0.88,hiHz=centerHz*1.12;
-    const lo=Math.floor(loHz/binHz),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
-    let energy=0;
-    for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
-    harmonicEnergies.push(Math.sqrt(energy));
+    const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
+    let peakVal=0;
+    for(let b=lo;b<=hi;b++) if(spectrum[b]>peakVal) peakVal=spectrum[b];
+    harmonicEnergies.push(peakVal);
   }
   const fundamentalEnergy=harmonicEnergies[0]||1;
   const harmonicRatios=harmonicEnergies.map(e=>e/fundamentalEnergy);
