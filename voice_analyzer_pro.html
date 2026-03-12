@@ -516,17 +516,17 @@ async function analyzeAudio(){
     if(candPitch<70||candPitch>700) continue;
 
     // 自己相関の信頼度チェック（正規化相関係数）
+    // 裏声は倍音が弱く信頼度が低く出るので閾値を非常に緩めに設定
     let power=0;for(let i=0;i<frameSize;i++)power+=frame[i]*frame[i];
     const normalizedAc=power>0?bestVal/power:0;
-    // 信頼度0.1未満は無声と判断（厳しすぎると全フレーム弾かれるので緩め）
-    if(normalizedAc<0.1) continue;
+    if(normalizedAc<0.05) continue;
 
     pitchValues.push(candPitch);
     rmsValues.push(rms);
   }
-  if(pitchValues.length<3){
+  if(pitchValues.length<2){
     document.getElementById('loadingCard').classList.add('hidden');
-    alert('有声区間が短すぎます。5秒以上の発話でお試しください。');return;
+    alert('有声区間が短すぎます。3秒以上の発話でお試しください。');return;
   }
 
   // 中央値ピッチ
@@ -563,16 +563,21 @@ async function analyzeAudio(){
   // 倍音の強さ（2〜8倍音の平均比率）
   const richRatios=harmonicRatios.slice(1,8);
   const harmonicRichness=richRatios.reduce((a,b)=>a+b,0)/richRatios.length;
-  // 倍音数スコア：11個→100点、8個→80点、5個→55点、3個→30点、1個以下→5点
+  // 倍音数スコア：9個以上→100点、7個→75点、5個→50点、3個→25点、2個以下→5点
   const countScore=Math.max(0,Math.min(100,Math.round(
-    detectedCount>=10 ? 100 :
-    detectedCount>=7  ? 70+(detectedCount-7)/3*30 :
-    detectedCount>=4  ? 40+(detectedCount-4)/3*30 :
-    detectedCount>=2  ? 15+(detectedCount-2)/2*25 :
-    detectedCount===1 ? 5 : 0
+    detectedCount>=9  ? 100 :
+    detectedCount>=7  ? 75+(detectedCount-7)/2*25 :
+    detectedCount>=5  ? 50+(detectedCount-5)/2*25 :
+    detectedCount>=3  ? 25+(detectedCount-3)/2*25 :
+    detectedCount>=1  ? 5+(detectedCount-1)/2*20 : 0
   )));
-  // 倍音強さスコア：平均50%以上→100点、30%→70点、15%→40点
-  const strengthScore=Math.max(0,Math.min(100,Math.round(harmonicRichness*200)));
+  // 倍音強さスコア：平均70%以上→100点、40%→70点、20%→40点、10%未満→0点
+  const strengthScore=Math.max(0,Math.min(100,Math.round(
+    harmonicRichness>=0.7 ? 100 :
+    harmonicRichness>=0.4 ? 70+(harmonicRichness-0.4)/0.3*30 :
+    harmonicRichness>=0.2 ? 40+(harmonicRichness-0.2)/0.2*30 :
+    harmonicRichness>=0.1 ? harmonicRichness/0.1*40 : 0
+  )));
   // 総合倍音スコア：数60% + 強さ40%
   const richScore=Math.round(countScore*0.6+strengthScore*0.4);
 
@@ -676,10 +681,10 @@ async function analyzeAudio(){
 
   // --- 判定 ---
   let vClass,vIcon,vTitle,vDesc;
-  if(totalScore>=80){vClass='good';vIcon='🎙️';vTitle='いい声認定！';vDesc='声の全指標が高水準です。'+genderLabel+'らしい豊かな倍音と安定感を持った、本格的ないい声の持ち主です。';}
-  else if(totalScore>=65){vClass='good';vIcon='✨';vTitle='かなりいい声！';vDesc='ほとんどの指標が優秀です。あと一歩でトップクラスの声になれます。';}
-  else if(totalScore>=50){vClass='warn';vIcon='🎶';vTitle='惜しい！もう一息';vDesc='声の素地はあります。弱い指標を重点的にトレーニングしましょう。';}
-  else if(totalScore>=30){vClass='warn';vIcon='📊';vTitle='伸びしろあり';vDesc='いくつかの指標で改善の余地があります。発声練習で大きく伸びる可能性があります。';}
+  if(totalScore>=85){vClass='good';vIcon='🎙️';vTitle='いい声認定！';vDesc='声の全指標が高水準です。'+genderLabel+'らしい豊かな倍音と安定感を持った、本格的ないい声の持ち主です。';}
+  else if(totalScore>=70){vClass='good';vIcon='✨';vTitle='かなりいい声！';vDesc='ほとんどの指標が優秀です。あと一歩でトップクラスの声になれます。';}
+  else if(totalScore>=55){vClass='warn';vIcon='🎶';vTitle='惜しい！もう一息';vDesc='声の素地はあります。弱い指標を重点的にトレーニングしましょう。';}
+  else if(totalScore>=35){vClass='warn';vIcon='📊';vTitle='伸びしろあり';vDesc='いくつかの指標で改善の余地があります。発声練習で大きく伸びる可能性があります。';}
   else{vClass='bad';vIcon='🔈';vTitle='まだまだこれから';vDesc='録音環境の見直しと発声練習を始めましょう。継続的なトレーニングで改善できます。';}
 
   // --- アドバイス生成（男女別）---
