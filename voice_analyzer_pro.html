@@ -1109,31 +1109,31 @@ function saveImage(){
   ctx.beginPath();ctx.moveTo(40,40);ctx.lineTo(W-40,40);ctx.stroke();
 
   // ── キャラクターアイコン ──
-  ctx.font='52px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText(vt.icon,W/2,88);
+  ctx.font='38px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(vt.icon,W/2,78);
   ctx.textBaseline='alphabetic';
 
   // ── キャラクター名 ──
-  ctx.fillStyle=vtColor;ctx.font='bold 26px sans-serif';ctx.textAlign='center';
-  ctx.fillText(vt.name,W/2,130);
+  ctx.fillStyle=vtColor;ctx.font='bold 24px sans-serif';ctx.textAlign='center';
+  ctx.fillText(vt.name,W/2,120);
 
   // ── タグ pill ──
   ctx.font='bold 11px monospace';
   const tagW=ctx.measureText(vt.tag).width+20;
-  const tagX=(W-tagW)/2,tagY=140;
+  const tagX=(W-tagW)/2,tagY=130;
   ctx.fillStyle=vtColor+'20';
   ctx.beginPath();ctx.roundRect(tagX,tagY,tagW,20,10);ctx.fill();
   ctx.strokeStyle=vtColor+'60';ctx.lineWidth=1;
   ctx.beginPath();ctx.roundRect(tagX,tagY,tagW,20,10);ctx.stroke();
   ctx.fillStyle=vtColor;ctx.textAlign='center';
-  ctx.fillText(vt.tag,W/2,154);
+  ctx.fillText(vt.tag,W/2,144);
 
   // ── 総合スコア ──
   const vColor=r.vClass==='good'?'#4ff0b0':r.vClass==='warn'?'#ffd166':'#ff6b6b';
   ctx.fillStyle=vColor;ctx.font='bold 70px monospace';ctx.textAlign='center';
-  ctx.fillText(r.totalScore+'点',W/2,238);
+  ctx.fillText(r.totalScore+'点',W/2,228);
   ctx.fillStyle=vColor+'99';ctx.font='bold 13px sans-serif';ctx.textAlign='center';
-  ctx.fillText(r.vTitle,W/2,260);
+  ctx.fillText(r.vTitle,W/2,250);
 
   // ── 特徴タグ（traits pills） ──
   const traits=vt.traits||[];
@@ -1141,7 +1141,7 @@ function saveImage(){
   const pillH=18,pillGap=8;
   const pillWidths=traits.map(t=>ctx.measureText(t).width+16);
   const totalPillW=pillWidths.reduce((a,b)=>a+b,0)+(traits.length-1)*pillGap;
-  let px=(W-totalPillW)/2,py=274;
+  let px=(W-totalPillW)/2,py=264;
   traits.forEach((t,i)=>{
     const pw=pillWidths[i];
     ctx.fillStyle=vtColor+'18';
@@ -1155,7 +1155,7 @@ function saveImage(){
 
   // ── セパレーター ──
   ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(30,302);ctx.lineTo(W-30,302);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(30,292);ctx.lineTo(W-30,292);ctx.stroke();
 
   // ── 4軸スコアバー ──
   const metrics=[
@@ -1169,7 +1169,7 @@ function saveImage(){
   metrics.forEach((m,i)=>{
     const isRight=i%2===1;
     const bx=isRight?col2X:col1X;
-    const by=318+Math.floor(i/2)*36;
+    const by=308+Math.floor(i/2)*36;
     ctx.fillStyle='#8a9ab0';ctx.font='10px sans-serif';ctx.textAlign='left';
     ctx.fillText(m.label,bx,by+8);
     ctx.fillStyle='#c8d0e0';ctx.font='bold 11px monospace';ctx.textAlign='right';
@@ -1185,15 +1185,15 @@ function saveImage(){
 
   // ── セパレーター ──
   ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(30,396);ctx.lineTo(W-30,396);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(30,386);ctx.lineTo(W-30,386);ctx.stroke();
 
   // ── 近い声優 ──
-  const seiyuu=vt.seiyuu||[];
+  const seiyuu=(r.isFemale ? vt.seiyuuF : vt.seiyuuM)||[];
   if(seiyuu.length>0){
     ctx.fillStyle='#8a9ab0';ctx.font='10px monospace';ctx.textAlign='left';
-    ctx.fillText('🎙️ 似ている声優',30,416);
+    ctx.fillText('🎙️ 似ている声優',30,406);
     seiyuu.forEach((name,i)=>{
-      const sx=30+i*(W-60)/3,sy=440;
+      const sx=30+i*(W-60)/3,sy=430;
       const sw=(W-60)/3-8;
       ctx.fillStyle='#111318';
       ctx.beginPath();ctx.roundRect(sx,sy-16,sw,26,6);ctx.fill();
@@ -1206,7 +1206,7 @@ function saveImage(){
 
   // ── セパレーター ──
   ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(30,460);ctx.lineTo(W-30,460);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(30,450);ctx.lineTo(W-30,450);ctx.stroke();
 
   // ── 数値データ行 ──
   const stats=[
@@ -1220,20 +1220,20 @@ function saveImage(){
   stats.forEach((s,i)=>{
     const sx=30+i*statW+statW/2;
     ctx.fillStyle='#3a4050';ctx.font='9px monospace';ctx.textAlign='center';
-    ctx.fillText(s[0],sx,480);
+    ctx.fillText(s[0],sx,470);
     ctx.fillStyle='#c8d0e0';ctx.font='bold 12px monospace';ctx.textAlign='center';
-    ctx.fillText(s[1],sx,497);
+    ctx.fillText(s[1],sx,487);
   });
 
   // ── フッター ──
   ctx.strokeStyle='#1e2330';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(30,510);ctx.lineTo(W-30,510);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(30,500);ctx.lineTo(W-30,500);ctx.stroke();
   ctx.fillStyle='#2a3040';ctx.font='10px monospace';ctx.textAlign='center';
-  ctx.fillText('voice-analyzer-pro',W/2,530);
+  ctx.fillText('voice-analyzer-pro',W/2,520);
 
   // ── ハッシュタグ ──
   ctx.fillStyle='#1e3040';ctx.font='9px monospace';ctx.textAlign='center';
-  ctx.fillText('#いい声診断  #倍音分析  #VoiceAnalyzerPro',W/2,548);
+  ctx.fillText('#いい声診断  #倍音分析  #VoiceAnalyzerPro',W/2,538);
 
   // ── 下部グロー ──
   const grd2=ctx.createRadialGradient(W/2,H,0,W/2,H,200);
@@ -1274,7 +1274,8 @@ const VOICE_TYPES=[
     desc:'倍音・安定性・抑揚のすべてが高次元で揃った、まさに「いい声」の理想形。聴く人を引き込む圧倒的な声の持ち主です。',
     traits:['倍音豊富','超安定','自然なゆらぎ','表現力◎'],
     traitColor:'#ffd166',
-    seiyuu:['大塚明夫','中田譲治','林原めぐみ'],
+    seiyuuM:['大塚明夫','中田譲治','堀内賢雄'],
+    seiyuuF:['林原めぐみ','坂本真綾','早見沙織'],
     match:({totalScore})=>totalScore>=82,
   },
   {
@@ -1286,7 +1287,8 @@ const VOICE_TYPES=[
     desc:'低めのピッチに豊かな倍音が乗った、深みと包容力のある声。落ち着いた存在感があり、ナレーション向きです。',
     traits:['低音域','倍音豊富','落ち着き','安定感'],
     traitColor:'#7eb8ff',
-    seiyuu:['玄田哲章','菅生隆之','田中敦子'],
+    seiyuuM:['玄田哲章','菅生隆之','大塚芳忠'],
+    seiyuuF:['田中敦子','榊原良子','勝生真沙子'],
     match:({safePitch,richScore,stabilityScore})=>safePitch<130&&richScore>=60&&stabilityScore>=55,
   },
   {
@@ -1298,7 +1300,8 @@ const VOICE_TYPES=[
     desc:'明るく通りのいい声質。倍音が豊かで抜けがよく、エネルギーに満ちた印象を与えます。アナウンス・話声に向いています。',
     traits:['中高音域','倍音◎','明瞭感','エネルギッシュ'],
     traitColor:'#ffd166',
-    seiyuu:['宮野真守','梶裕貴','水樹奈々'],
+    seiyuuM:['宮野真守','梶裕貴','神谷浩史'],
+    seiyuuF:['水樹奈々','花澤香菜','茅野愛衣'],
     match:({safePitch,richScore,intonationScore})=>safePitch>=130&&safePitch<230&&richScore>=60&&intonationScore>=50,
   },
   {
@@ -1310,7 +1313,8 @@ const VOICE_TYPES=[
     desc:'声のブレが非常に少なく、なめらかで心地よい声質。長時間聴いても疲れない、耳触りのいい声です。',
     traits:['超安定','滑らか','Jitter低','Shimmer低'],
     traitColor:'#c084fc',
-    seiyuu:['中村悠一','坂本真綾','早見沙織'],
+    seiyuuM:['中村悠一','石田彰','杉田智和'],
+    seiyuuF:['坂本真綾','早見沙織','雨宮天'],
     match:({stabilityScore,jitter,shimmer})=>stabilityScore>=75&&jitter<0.8&&shimmer<0.8,
   },
   {
@@ -1322,7 +1326,8 @@ const VOICE_TYPES=[
     desc:'豊かな抑揚と感情表現が特徴の声。聴く人の感情を揺さぶる、表現力の高い声の持ち主です。',
     traits:['抑揚豊か','感情表現◎','表現力高'],
     traitColor:'#ff6b6b',
-    seiyuu:['山寺宏一','小野大輔','沢城みゆき'],
+    seiyuuM:['山寺宏一','小野大輔','関智一'],
+    seiyuuF:['沢城みゆき','朴璐美','能登麻美子'],
     match:({intonationSemitones,intonationScore,richScore})=>intonationSemitones>=6&&intonationScore>=65&&richScore>=45,
   },
   {
@@ -1334,7 +1339,8 @@ const VOICE_TYPES=[
     desc:'特定の突出した特徴はないものの、全体的にバランスの取れた聴きやすい声。日常会話・配信に向いています。',
     traits:['バランス型','聴きやすい','自然体'],
     traitColor:'#4ff0b0',
-    seiyuu:['花江夏樹','神谷浩史','悠木碧'],
+    seiyuuM:['花江夏樹','梅原裕一郎','内山昂輝'],
+    seiyuuF:['悠木碧','石川由依','東山奈央'],
     match:({totalScore,richScore,stabilityScore})=>totalScore>=50&&richScore>=40&&stabilityScore>=45,
   },
   {
@@ -1346,7 +1352,8 @@ const VOICE_TYPES=[
     desc:'ざらつきのある独特の声質。Shimmerが高めでも個性として際立ちます。クセになる魅力的な声です。',
     traits:['独特の質感','個性的','印象に残る'],
     traitColor:'#ffa040',
-    seiyuu:['置鮎龍太郎','緑川光','能登麻美子'],
+    seiyuuM:['置鮎龍太郎','緑川光','中井和哉'],
+    seiyuuF:['能登麻美子','甲斐田裕子','井上喜久子'],
     match:({shimmer,richScore})=>shimmer>=1.5&&richScore>=35,
   },
   {
@@ -1358,7 +1365,8 @@ const VOICE_TYPES=[
     desc:'まだ声の特性が安定していませんが、トレーニング次第で大きく伸びるポテンシャルを秘めています。',
     traits:['発展途上','練習で改善','可能性◎'],
     traitColor:'#8a9ab0',
-    seiyuu:['鈴村健一','石川由依','悠木碧'],
+    seiyuuM:['鈴村健一','小西克幸','前野智昭'],
+    seiyuuF:['石川由依','東山奈央','小松未可子'],
     match:()=>true, // fallback
   },
 ];
