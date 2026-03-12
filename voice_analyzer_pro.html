@@ -230,7 +230,7 @@
         <div class="metric">
           <div class="metric-label">倍音の検出数</div>
           <div class="metric-value good" id="metHRatio">−</div>
-          <div class="metric-sub" id="metHRatioSub">12倍音中の検出数</div>
+          <div class="metric-sub" id="metHRatioSub">11倍音中の検出数</div>
           <div class="metric-desc">声の<b>深み・温かみ</b>の指標。多いほど倍音が豊かで「いい声」らしさが増します。強さも合わせて評価します。</div>
         </div>
         <div class="metric">
@@ -288,7 +288,7 @@
     <span style="font-size:.85rem;"><span style="color:var(--accent2);font-weight:700;">● 赤</span> = 要改善</span>
   </div>
   <ul class="howto">
-    <li><strong style="color:var(--accent3)">倍音の数と強さ</strong>が最重要指標。12倍音中10個以上検出で高得点。男女・声域に関係なく評価します</li>
+    <li><strong style="color:var(--accent3)">倍音の数と強さ</strong>が最重要指標。11倍音中9個以上検出で高得点。男女・声域に関係なく評価します</li>
     <li><strong style="color:var(--accent5)">Jitter・Shimmer</strong>はピッチと音量のブレ。ブラウザ計測では1%・1dB以下が安定の目安</li>
     <li><strong style="color:var(--accent2)">1/fゆらぎ</strong>の傾きが −0.7〜−1.3 付近が「心地よい声」</li>
     <li><strong style="color:var(--accent4)">抑揚の幅</strong>は3〜10半音が自然な話し声の目安</li>
@@ -333,14 +333,16 @@ dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remov
 async function loadFile(file){
   if(!file||!file.type.startsWith('audio/'))return;
   document.getElementById('fileName').textContent=file.name;
-  analyzeBtn.disabled=false;
-  const ctx=getCtx();
-  const buf=await file.arrayBuffer();
-  audioBuffer=await ctx.decodeAudioData(buf);
-  const url=URL.createObjectURL(file);
-  const player=document.getElementById('audioPlayer');
-  player.src=url;player.classList.remove('hidden');
-  drawWaveform();
+  try{
+    const ctx=getCtx();
+    const buf=await file.arrayBuffer();
+    audioBuffer=await ctx.decodeAudioData(buf);
+    const url=URL.createObjectURL(file);
+    const player=document.getElementById('audioPlayer');
+    player.src=url;player.classList.remove('hidden');
+    analyzeBtn.disabled=false;
+    drawWaveform();
+  }catch(e){alert('音声ファイルの読み込みに失敗しました。対応フォーマット（WAV・MP3・M4A・OGG）をお試しください。');}
 }
 analyzeBtn.addEventListener('click',()=>{if(audioBuffer)analyzeAudio();});
 
@@ -350,6 +352,8 @@ analyzeBtn.addEventListener('click',()=>{if(audioBuffer)analyzeAudio();});
 async function toggleRecording(){
   if(mediaRecorder&&mediaRecorder.state==='recording'){
     mediaRecorder.stop();
+    // マイクのインジケータを消すためにstreamトラックを停止
+    if(mediaRecorder.stream) mediaRecorder.stream.getTracks().forEach(t=>t.stop());
     clearInterval(timerInterval);
     document.getElementById('micBtn').classList.remove('recording');
     document.getElementById('micStatus').textContent='録音完了。解析してください。';
@@ -366,10 +370,12 @@ async function toggleRecording(){
       const url=URL.createObjectURL(blob);
       const player=document.getElementById('audioPlayer');
       player.src=url;player.classList.remove('hidden');
-      const ab=await blob.arrayBuffer();
-      audioBuffer=await getCtx().decodeAudioData(ab);
-      document.getElementById('micAnalyzeBtn').disabled=false;
-      drawWaveform();
+      try{
+        const ab=await blob.arrayBuffer();
+        audioBuffer=await getCtx().decodeAudioData(ab);
+        document.getElementById('micAnalyzeBtn').disabled=false;
+        drawWaveform();
+      }catch(e){alert('録音データのデコードに失敗しました。もう一度録音してください。');}
     };
     mediaRecorder.start();
     document.getElementById('micBtn').classList.add('recording');
@@ -390,9 +396,8 @@ document.getElementById('micAnalyzeBtn').addEventListener('click',()=>{if(audioB
 function drawWaveform(){
   document.getElementById('waveCard').classList.remove('hidden');
   const dpr=devicePixelRatio||1;
-  // 波形
   const wc=document.getElementById('waveCanvas');
-  const W=wc.offsetWidth*dpr,H=70*dpr;
+  const W=Math.max(1,wc.offsetWidth*dpr),H=70*dpr;
   wc.width=W;wc.height=H;
   const wctx=wc.getContext('2d');wctx.fillStyle='#080a0e';wctx.fillRect(0,0,W,H);
   const raw=audioBuffer.getChannelData(0);
@@ -412,19 +417,24 @@ function drawWaveform(){
   const sc=document.getElementById('specCanvas');
   sc.width=W;sc.height=H;
   const sctx=sc.getContext('2d');sctx.fillStyle='#080a0e';sctx.fillRect(0,0,W,H);
-  const N=nextPow2(Math.min(data.length,65536));
-  const padded=new Float32Array(N);
-  for(let i=0;i<Math.min(data.length,N);i++) padded[i]=data[i]*(0.5*(1-Math.cos(2*Math.PI*i/(N-1))));
-  const spec=fftMagnitude(padded);
-  const half=Math.floor(N/2);
-  let specMax=0;for(let b=1;b<half;b++)if(spec[b]>specMax)specMax=spec[b];
-  sctx.strokeStyle='#7eb8ff';sctx.lineWidth=1;sctx.beginPath();
-  for(let i=0;i<W;i++){
-    const b=Math.floor((i/W)*(half-1))+1;
-    const y=H-(spec[b]/specMax)*H*0.9;
-    i===0?sctx.moveTo(i,y):sctx.lineTo(i,y);
+  const Ns=nextPow2(Math.min(data.length,65536));
+  const useLens=Math.min(data.length,Ns);
+  if(useLens>=2){
+    const paddeds=new Float32Array(Ns);
+    for(let i=0;i<useLens;i++) paddeds[i]=data[i]*(0.5*(1-Math.cos(2*Math.PI*i/(useLens-1))));
+    const spec=fftMagnitude(paddeds);
+    const halfs=Math.floor(Ns/2);
+    let specMax=0;for(let b=1;b<halfs;b++)if(spec[b]>specMax)specMax=spec[b];
+    if(specMax>0){
+      sctx.strokeStyle='#7eb8ff';sctx.lineWidth=1;sctx.beginPath();
+      for(let i=0;i<W;i++){
+        const b=Math.max(1,Math.floor((i/W)*(halfs-1)));
+        const y=H-(spec[b]/specMax)*H*0.9;
+        i===0?sctx.moveTo(i,y):sctx.lineTo(i,y);
+      }
+      sctx.stroke();
+    }
   }
-  sctx.stroke();
 }
 
 // ============================================================
@@ -433,7 +443,7 @@ function drawWaveform(){
 async function analyzeAudio(){
   document.getElementById('loadingCard').classList.remove('hidden');
   document.getElementById('resultCard').classList.add('hidden');
-  await new Promise(r=>setTimeout(r,50));
+  await new Promise(resolve=>setTimeout(resolve,50));
 
   const raw=audioBuffer.getChannelData(0);
   const sampleRate=audioBuffer.sampleRate;
@@ -468,6 +478,9 @@ async function analyzeAudio(){
   // --- 1. FFT（安定区間を使用）---
   const maxSamples=65536;
   const useLen=Math.min(stableData.length,maxSamples);
+  if(useLen<8){
+    throw new Error('録音が短すぎます。3秒以上の発話でお試しください。');
+  }
   const N=nextPow2(useLen);
   const padded=new Float32Array(N);
   for(let i=0;i<useLen;i++){
@@ -480,7 +493,7 @@ async function analyzeAudio(){
 
   // --- 2. フレームごと自己相関 + Voiced Frame Detection ---
   const frameSize=4096,hopSize=512;
-  const minLag=Math.floor(sampleRate/700),maxLag=Math.floor(sampleRate/70);
+  const minLag=Math.max(1,Math.floor(sampleRate/700)),maxLag=Math.floor(sampleRate/70);
   const pitchValues=[];
   const rmsValues=[];
 
@@ -492,9 +505,8 @@ async function analyzeAudio(){
     allRms.push(Math.sqrt(rms/frameSize));
   }
   const sortedRms=[...allRms].sort((a,b)=>a-b);
-  const medianRms=sortedRms[Math.floor(sortedRms.length/2)]||0.01;
-  // voiced判定閾値：中央値RMSの20%以上かつ絶対値0.005以上
-  const energyThreshold=Math.max(medianRms*0.20, 0.005);
+  const medianRms=(sortedRms.length>0?sortedRms[Math.floor(sortedRms.length/2)]:0)||0.01;
+  const energyThreshold=Math.max(medianRms*0.20,0.005);
 
   for(let offset=0;offset+frameSize<stableData.length;offset+=hopSize){
     const frame=stableData.slice(offset,offset+frameSize);
@@ -537,32 +549,37 @@ async function analyzeAudio(){
   // FFTスペクトル補正＋放物線補間
   const sLo=Math.max(Math.round(80/binHz),Math.round(medianPitch*0.85/binHz));
   const sHi=Math.min(Math.round(medianPitch*1.15/binHz),half-1);
-  let peakBin=sLo,peakAmp=0;
-  for(let b=sLo;b<=sHi;b++){if(spectrum[b]>peakAmp){peakAmp=spectrum[b];peakBin=b;}}
+  let peakBin=Math.min(sLo,half-1),peakAmp=0;
+  if(sLo<=sHi){
+    for(let b=sLo;b<=sHi;b++){if(spectrum[b]>peakAmp){peakAmp=spectrum[b];peakBin=b;}}
+  }
   const pp=peakBin>0?spectrum[peakBin-1]:0;
   const pn=peakBin<half-1?spectrum[peakBin+1]:0;
-  const pd=(pp-2*peakAmp+pn);
-  const refinedPitch=(peakBin+(pd!==0?0.5*(pp-pn)/(-pd):0))*binHz;
+  const pd=pp-2*peakAmp+pn;
+  // 放物線補間量を±0.5binに制限して爆発を防ぐ
+  const interp=pd!==0?Math.max(-0.5,Math.min(0.5,0.5*(pp-pn)/(-pd))):0;
+  const refinedPitch=Math.max(0,(peakBin+interp)*binHz);
+  // refinedPitchが0または極端に小さい場合は中央値ピッチで代替
+  const safePitch = refinedPitch > 10 ? refinedPitch : medianPitch;
 
-  // --- 3. 倍音エネルギー（各倍音のピーク振幅を使用）---
-  // 窓幅に依存しないようピーク値のみ取得
+  // --- 3. 倍音エネルギー（各倍音のピーク振幅を使用、safePitch基準）---
   const harmonicEnergies=[];
   for(let h=1;h<=12;h++){
-    const centerHz=refinedPitch*h;
+    const centerHz=safePitch*h;
     const loHz=centerHz*0.88,hiHz=centerHz*1.12;
     const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
     let peakVal=0;
-    for(let b=lo;b<=hi;b++) if(spectrum[b]>peakVal) peakVal=spectrum[b];
+    if(lo<=hi) for(let b=lo;b<=hi;b++) if(spectrum[b]>peakVal) peakVal=spectrum[b];
     harmonicEnergies.push(peakVal);
   }
   const fundamentalEnergy=harmonicEnergies[0]||1;
   const harmonicRatios=harmonicEnergies.map(e=>e/fundamentalEnergy);
 
   // --- 4. 倍音スコア（数×強さの組み合わせ）---
-  // 基音の10%以上の強さで検出された倍音を「有効」とカウント
-  const detectedCount=harmonicRatios.slice(1).filter(r=>r>=0.10).length; // 2〜12倍音中
-  // 倍音の強さ（2〜8倍音の平均比率）
-  const richRatios=harmonicRatios.slice(1,8);
+  // 基音の10%以上の強さで検出された倍音を「有効」とカウント（2〜12倍音の11個）
+  const detectedCount=harmonicRatios.slice(1).filter(h=>h>=0.10).length;
+  // 倍音の強さ（2〜12倍音の全11個の平均比率で統一）
+  const richRatios=harmonicRatios.slice(1); // 11個
   const harmonicRichness=richRatios.reduce((a,b)=>a+b,0)/richRatios.length;
   // 倍音数スコア：9個以上→100点、7個→75点、5個→50点、3個→25点、2個以下→5点
   const countScore=Math.max(0,Math.min(100,Math.round(
@@ -623,7 +640,7 @@ async function analyzeAudio(){
 
   // --- 8. Shimmer（音量変動）---
   const rmsMedian=rmsValues.length>0?rmsValues.slice().sort((a,b)=>a-b)[Math.floor(rmsValues.length/2)]:0.01;
-  const validRms=rmsValues.filter(r=>r>rmsMedian*0.2&&r<rmsMedian*3);
+  const validRms=rmsValues.filter(v=>v>rmsMedian*0.2&&v<rmsMedian*3);
   let shimmerDbSum=0;
   for(let i=1;i<validRms.length;i++){
     shimmerDbSum+=Math.abs(20*Math.log10(Math.max(1e-10,validRms[i])/Math.max(1e-10,validRms[i-1])));
@@ -643,7 +660,8 @@ async function analyzeAudio(){
   const trimmedP=[...sortedP]
     .slice(Math.floor(sortedP.length*0.15),Math.floor(sortedP.length*0.85))
     .filter(p=>p>medianPitch*0.5&&p<medianPitch*2.0);
-  const intonationSemitones=trimmedP.length>1?12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]):0;
+  const intonationSemitones=(trimmedP.length>1&&trimmedP[0]>0)
+    ? 12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]) : 0;
   // 抑揚スコア：3〜10半音が理想、単調すぎ・過剰すぎはペナルティ
   const intonationScore=Math.max(0,Math.min(100,Math.round(
     intonationSemitones<1  ? intonationSemitones*20 :
@@ -656,8 +674,8 @@ async function analyzeAudio(){
   // --- 10. スコア計算（4軸）---
   // 男女判定：表示用のみ（スコアには影響しない）
   // 裏声も考慮して300Hz以上を女性、または165〜300Hzは平均的な女性域
-  const isFemale = refinedPitch >= 165;
-  const genderLabel = refinedPitch >= 165 ? '女性' : '男性';
+  const isFemale = safePitch >= 165;
+  const genderLabel = safePitch >= 165 ? '女性' : '男性';
 
   const totalScore=Math.round(
     richScore*0.40+
@@ -669,7 +687,7 @@ async function analyzeAudio(){
   // --- 副倍音検出 ---
   const subHarmonics=[];
   for(let d=2;d<=4;d++){
-    const subHz=refinedPitch/d;
+    const subHz=safePitch/d;
     if(subHz<20)break;
     const loHz=subHz*0.85,hiHz=subHz*1.15;
     const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
@@ -691,7 +709,7 @@ async function analyzeAudio(){
   // --- アドバイス生成（男女別）---
   const advices=[];
   if(richScore<60){
-    if(r.detectedCount<5) advices.push('倍音が少なめ：口腔内を広く保ち、口角を少し上げて発声すると倍音が豊かになります');
+    if(detectedCount<5) advices.push('倍音が少なめ：口腔内を広く保ち、口角を少し上げて発声すると倍音が豊かになります');
     else advices.push('倍音の強さが弱め：ハミング練習で倍音を強化しましょう');
   }
   if(stabilityScore<60) advices.push('声の安定性：腹筋を使った安定した息の流れを意識し、声の揺れを減らしましょう');
@@ -703,7 +721,7 @@ async function analyzeAudio(){
   // --- 結果保存 ---
   lastResult={
     totalScore,richScore,countScore,strengthScore,flickerScore,stabilityScore,intonationScore,
-    flickerSlope,meanPitch:refinedPitch,harmonicRatios,harmonicRichness,detectedCount,
+    flickerSlope,meanPitch:safePitch,harmonicRatios,harmonicRichness,detectedCount,
     jitter,shimmer,intonationSemitones,
     isFemale,genderLabel,
     vClass,vTitle,vIcon,vDesc,
@@ -744,11 +762,14 @@ function displayResults(r){
     ['Intonation',r.intonationScore,'var(--accent4)', cc],
   ];
   subs.forEach(([k,score,color,fn])=>{
-    const cls=fn(score);
+    const cls=fn(score); // flickerのfnはscoreを無視してslopeを使う
     const el=document.getElementById('sub'+k);
+    if(!el)return; // 存在チェック
     el.textContent=score+'点';el.className='sub-score-val '+cls;
-    document.getElementById('sub'+k+'Bar').style.width=score+'%';
-    document.getElementById('sub'+k+'Bar').style.background=
+    const bar=document.getElementById('sub'+k+'Bar');
+    if(!bar)return;
+    bar.style.width=score+'%';
+    bar.style.background=
       color?(cls==='good'?color:cls==='warn'?'var(--accent4)':'var(--accent2)')
            :(cls==='good'?'var(--accent)':cls==='warn'?'var(--accent4)':'var(--accent2)');
   });
@@ -758,11 +779,10 @@ function displayResults(r){
   const genderBadge = r.isFemale ? '👩 女性基準' : '👨 男性基準';
   let pitchComment='';
   if(r.isFemale){
-    if(pitch<165) pitchComment='女性・低め';
-    else if(pitch<210) pitchComment='女性・低め';
-    else if(pitch<260) pitchComment='女性・平均的';
-    else if(pitch<320) pitchComment='女性・高め';
-    else pitchComment='女性・かなり高め';
+    if(pitch<210)       pitchComment='女性・低め';
+    else if(pitch<260)  pitchComment='女性・平均的';
+    else if(pitch<320)  pitchComment='女性・高め';
+    else                pitchComment='女性・かなり高め';
   } else {
     if(pitch<85)  pitchComment='男性・極めて低い';
     else if(pitch<110) pitchComment='男性・低め';
@@ -860,7 +880,7 @@ function drawRadar(r){
   // ラベル＋スコア（同じ位置に2行で表示、被りなし）
   labels.forEach((lbl,i)=>{
     const a=angle(i);
-    const labelColors=['#4ff0b0','#7eb8ff','#ffd166','#4ff0b0','#c084fc','#7eb8ff'];
+    const labelColors=['#4ff0b0','#7eb8ff','#ffd166','#c084fc'];
     const r2=maxR+20*dpr;
     const x=cx+Math.cos(a)*r2,y=cy+Math.sin(a)*r2;
     const isRight=Math.cos(a)>0.1,isLeft=Math.cos(a)<-0.1;
@@ -917,7 +937,7 @@ function buildHarmonicBars(ratios){
 // ============================================================
 function drawHarmonicCanvas(r){
   const canvas=document.getElementById('harmonicCanvas');
-  const W=canvas.offsetWidth*devicePixelRatio,H=200*devicePixelRatio;
+  const W=Math.max(1,canvas.offsetWidth*devicePixelRatio),H=200*devicePixelRatio;
   canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
@@ -927,6 +947,7 @@ function drawHarmonicCanvas(r){
   const minBin=Math.max(1,Math.floor(minFreqShow/r.binHz));
   const maxBin=Math.min(Math.ceil(maxFreqShow/r.binHz),r.half-1);
   const freqRange=maxFreqShow-minFreqShow;
+  if(freqRange<=0)return; // ガード：表示範囲がゼロなら描画スキップ
   let specMax=0;for(let b=minBin;b<=maxBin;b++)if(r.spectrum[b]>specMax)specMax=r.spectrum[b];
   if(specMax===0)return;
   const toX=freq=>pad.l+((freq-minFreqShow)/freqRange)*pw;
@@ -950,6 +971,13 @@ function drawHarmonicCanvas(r){
     if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);
   }
   ctx.stroke();
+  // 塗りつぶしは別パス
+  ctx.beginPath();
+  first=true;
+  for(let b=minBin;b<=maxBin;b++){
+    const freq=b*r.binHz,x=toX(freq),y=pad.t+ph-(r.spectrum[b]/specMax)*ph*0.95;
+    if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);
+  }
   ctx.lineTo(toX(maxBin*r.binHz),pad.t+ph);ctx.lineTo(toX(minFreqShow),pad.t+ph);ctx.closePath();
   ctx.fillStyle='rgba(79,240,176,0.06)';ctx.fill();
   for(let h=0;h<12;h++){
@@ -1041,7 +1069,7 @@ function tweetResult(){
   if(!lastResult)return;
   const r=lastResult;
   const verdict=r.vClass==='good'?'いい声認定！🎙️':'もう一息🎶';
-  const text=`自分の声を本格分析してみた！\n\n結果: ${verdict}\nスコア: ${r.totalScore}点\n基音: ${Math.round(r.meanPitch)}Hz / HNR: ${r.hnrDb.toFixed(1)}dB / Jitter: ${r.jitter.toFixed(2)}%\n\n#いい声診断 #倍音分析 #VoiceAnalyzerPro`;
+  const text=`自分の声を本格分析してみた！\n\n結果: ${verdict}\nスコア: ${r.totalScore}点\n基音: ${Math.round(r.meanPitch)}Hz / 倍音: ${r.detectedCount}/11個 / Jitter: ${r.jitter.toFixed(2)}%\n\n#いい声診断 #倍音分析 #VoiceAnalyzerPro`;
   window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(text),'_blank');
 }
 
@@ -1050,24 +1078,27 @@ function tweetResult(){
 // ============================================================
 function nextPow2(n){let p=1;while(p<n)p<<=1;return p;}
 function linReg(xs,ys){
-  const n=xs.length,mx=xs.reduce((a,b)=>a+b,0)/n,my=ys.reduce((a,b)=>a+b,0)/n;
+  const n=xs.length;
+  if(n<2)return{slope:0,intercept:0};
+  const mx=xs.reduce((a,b)=>a+b,0)/n,my=ys.reduce((a,b)=>a+b,0)/n;
   let num=0,den=0;
   for(let i=0;i<n;i++){num+=(xs[i]-mx)*(ys[i]-my);den+=(xs[i]-mx)**2;}
-  const slope=num/den;return{slope,intercept:my-slope*mx};
+  const slope=den!==0?num/den:0;return{slope,intercept:my-slope*mx};
 }
 function fftMagnitude(x){
   const N=x.length,re=Array.from(x),im=new Array(N).fill(0);
   let j=0;
   for(let i=1;i<N;i++){let bit=N>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]];}}
   for(let len=2;len<=N;len<<=1){
+    const half2=len>>1;
     const ang=-2*Math.PI/len,wRe=Math.cos(ang),wIm=Math.sin(ang);
     for(let i=0;i<N;i+=len){
       let cRe=1,cIm=0;
-      for(let k=0;k<len/2;k++){
+      for(let k=0;k<half2;k++){
         const uRe=re[i+k],uIm=im[i+k];
-        const vRe=re[i+k+len/2]*cRe-im[i+k+len/2]*cIm;
-        const vIm=re[i+k+len/2]*cIm+im[i+k+len/2]*cRe;
-        re[i+k]=uRe+vRe;im[i+k]=uIm+vIm;re[i+k+len/2]=uRe-vRe;im[i+k+len/2]=uIm-vIm;
+        const vRe=re[i+k+half2]*cRe-im[i+k+half2]*cIm;
+        const vIm=re[i+k+half2]*cIm+im[i+k+half2]*cRe;
+        re[i+k]=uRe+vRe;im[i+k]=uIm+vIm;re[i+k+half2]=uRe-vRe;im[i+k+half2]=uIm-vIm;
         const tmp=cRe*wRe-cIm*wIm;cIm=cRe*wIm+cIm*wRe;cRe=tmp;
       }
     }
