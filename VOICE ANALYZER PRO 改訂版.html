@@ -710,7 +710,7 @@ async function analyzeAudio(){
     const roughStart=Math.max(0,Math.floor(cleaned.length/2-roughFrameSize/2));
     const roughFrame=cleaned.slice(roughStart,roughStart+roughFrameSize);
     const rMinLag=Math.max(1,Math.floor(sampleRate/700));
-    const rMaxLag=Math.floor(sampleRate/70);
+    const rMaxLag=Math.floor(sampleRate/60);
     let bestLag=rMinLag,bestVal=0;
     let power=0;for(let i=0;i<roughFrameSize;i++)power+=roughFrame[i]*roughFrame[i];
     for(let lag=rMinLag;lag<=rMaxLag;lag++){
@@ -955,14 +955,18 @@ async function analyzeAudio(){
   const isFemale = safePitch >= 165;
   const genderLabel = safePitch >= 165 ? '女性' : '男性';
 
-  const totalScore=Math.round(
-    richScore*0.40+
-    flickerScore*0.25+
-    stabilityScore*0.25+
-    intonationScore*0.10
-  );
   const flickerDisplayScore=flickerOk?flickerScore:0;
   const intonationDisplayScore=intonationOk?intonationScore:0;
+  const wRich=0.40;
+  const wFlicker=flickerOk?0.25:0;
+  const wStability=0.25;
+  const wIntonation=intonationOk?0.10:0;
+  const wSum=wRich+wFlicker+wStability+wIntonation;
+  const totalScore=Math.round(
+    wSum>0
+      ? (richScore*wRich+flickerDisplayScore*wFlicker+stabilityScore*wStability+intonationDisplayScore*wIntonation)/wSum
+      : 0
+  );
 
   const clipRatio=raw.length>0?clipCount/raw.length:0;
   const qualityNotes=[];
@@ -1017,8 +1021,8 @@ async function analyzeAudio(){
     else advices.push('倍音の強さが弱め：ハミング練習で倍音を強化しましょう');
   }
   if(stabilityScore<60) advices.push('声の安定性：腹筋を使った安定した息の流れを意識し、声の揺れを減らしましょう');
-  if(intonationScore<50) advices.push('抑揚の調整：単調すぎる場合は感情を込めた読み上げ練習を。過剰な場合は落ち着いたトーンを意識して');
-  if(Math.abs(flickerSlope+1.0)>0.4) advices.push('ゆらぎの調整：単調すぎず、過剰に揺れすぎない自然な抑揚を意識してみましょう');
+  if(intonationOk&&intonationScore<50) advices.push('抑揚の調整：単調すぎる場合は感情を込めた読み上げ練習を。過剰な場合は落ち着いたトーンを意識して');
+  if(flickerOk&&Math.abs(flickerSlope+1.0)>0.4) advices.push('ゆらぎの調整：単調すぎず、過剰に揺れすぎない自然な抑揚を意識してみましょう');
   if(advices.length===0) advices.push('全指標が良好です！現状を維持しながら、さらなる表現の幅を広げていきましょう');
   document.getElementById('adviceText').textContent=advices.join('。\n');
 
