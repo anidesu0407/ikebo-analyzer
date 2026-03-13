@@ -966,14 +966,16 @@ function buildHarmonicBars(ratios){
 // ============================================================
 function drawHarmonicCanvas(r){
   const canvas=document.getElementById('harmonicCanvas');
-  const W=Math.max(1,canvas.offsetWidth*devicePixelRatio),H=200*devicePixelRatio;
+  const dpr=devicePixelRatio||1;
+  const W=Math.max(1,canvas.offsetWidth*dpr),H=200*dpr;
   canvas.width=W;canvas.height=H;
+  canvas.style.height='200px'; // CSS表示サイズを固定してぼやけ防止
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
-  const pad={l:40*devicePixelRatio,r:12*devicePixelRatio,t:12*devicePixelRatio,b:24*devicePixelRatio};
+  const pad={l:40*dpr,r:12*dpr,t:12*dpr,b:24*dpr};
   const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
-  if(pw<=0||ph<=0)return; // 描画領域がない場合はスキップ
-  const minFreqShow=50,maxFreqShow=Math.min(r.meanPitch*13,8000);
+  if(pw<=0||ph<=0)return;
+  const minFreqShow=30,maxFreqShow=Math.min(r.meanPitch*13,8000);
   const minBin=Math.max(1,Math.floor(minFreqShow/r.binHz));
   const maxBin=Math.min(Math.ceil(maxFreqShow/r.binHz),r.half-1);
   const freqRange=maxFreqShow-minFreqShow;
@@ -984,17 +986,17 @@ function drawHarmonicCanvas(r){
   ctx.strokeStyle='rgba(30,35,48,0.8)';ctx.lineWidth=1;
   for(let i=1;i<=3;i++){const y=pad.t+ph/4*i;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();}
   let tickStep=100;if(maxFreqShow>3000)tickStep=500;if(maxFreqShow>6000)tickStep=1000;
-  ctx.fillStyle='#3a4050';ctx.font=`${8*devicePixelRatio}px monospace`;ctx.textAlign='center';
-  ctx.fillText('50',toX(50),pad.t+ph+12*devicePixelRatio);
+  ctx.fillStyle='#3a4050';ctx.font=`${8*dpr}px monospace`;ctx.textAlign='center';
+  ctx.fillText('30',toX(30),pad.t+ph+12*dpr);
   const freqTicks=[];
   for(let f=tickStep;f<maxFreqShow;f+=tickStep){if(f>=minFreqShow)freqTicks.push(f);}
   ctx.strokeStyle='rgba(30,35,48,0.6)';ctx.lineWidth=1;
   freqTicks.forEach(f=>{
     const x=toX(f);ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ph);ctx.stroke();
-    ctx.fillStyle='#3a4050';ctx.font=`${8*devicePixelRatio}px monospace`;ctx.textAlign='center';
-    ctx.fillText(f>=1000?(f/1000).toFixed(f%1000===0?0:1)+'k':f+'',x,pad.t+ph+12*devicePixelRatio);
+    ctx.fillStyle='#3a4050';ctx.font=`${8*dpr}px monospace`;ctx.textAlign='center';
+    ctx.fillText(f>=1000?(f/1000).toFixed(f%1000===0?0:1)+'k':f+'',x,pad.t+ph+12*dpr);
   });
-  ctx.beginPath();ctx.strokeStyle='rgba(79,240,176,0.5)';ctx.lineWidth=1.2*devicePixelRatio;
+  ctx.beginPath();ctx.strokeStyle='rgba(79,240,176,0.5)';ctx.lineWidth=1.2*dpr;
   let first=true;
   for(let b=minBin;b<=maxBin;b++){
     const freq=b*r.binHz,x=toX(freq),y=pad.t+ph-(r.spectrum[b]/specMax)*ph*0.95;
@@ -1021,13 +1023,13 @@ function drawHarmonicCanvas(r){
     const peakFreq=peakBin*r.binHz;
     if(peakFreq<minFreqShow||peakFreq>maxFreqShow)continue;
     const x=toX(peakFreq),y=pad.t+ph-(peakAmp/specMax)*ph*0.95;
-    ctx.strokeStyle=HARMONIC_COLORS[h]+'99';ctx.lineWidth=1.5*devicePixelRatio;ctx.setLineDash([3*devicePixelRatio,3*devicePixelRatio]);
-    ctx.beginPath();ctx.moveTo(x,pad.t+ph);ctx.lineTo(x,y+6*devicePixelRatio);ctx.stroke();ctx.setLineDash([]);
-    ctx.beginPath();ctx.arc(x,y,5*devicePixelRatio,0,Math.PI*2);ctx.fillStyle=HARMONIC_COLORS[h];ctx.fill();
-    ctx.fillStyle=HARMONIC_COLORS[h];ctx.font=`bold ${10*devicePixelRatio}px monospace`;ctx.textAlign='center';
-    ctx.fillText(h+1,x,y-18*devicePixelRatio);
-    ctx.fillStyle=HARMONIC_COLORS[h]+'cc';ctx.font=`${9*devicePixelRatio}px monospace`;
-    ctx.fillText((peakFreq>=1000?(peakFreq/1000).toFixed(1)+'k':Math.round(peakFreq))+'Hz',x,y-7*devicePixelRatio);
+    ctx.strokeStyle=HARMONIC_COLORS[h]+'99';ctx.lineWidth=1.5*dpr;ctx.setLineDash([3*dpr,3*dpr]);
+    ctx.beginPath();ctx.moveTo(x,pad.t+ph);ctx.lineTo(x,y+6*dpr);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.arc(x,y,5*dpr,0,Math.PI*2);ctx.fillStyle=HARMONIC_COLORS[h];ctx.fill();
+    ctx.fillStyle=HARMONIC_COLORS[h];ctx.font=`bold ${10*dpr}px monospace`;ctx.textAlign='center';
+    ctx.fillText(h+1,x,y-18*dpr);
+    ctx.fillStyle=HARMONIC_COLORS[h]+'cc';ctx.font=`${9*dpr}px monospace`;
+    ctx.fillText((peakFreq>=1000?(peakFreq/1000).toFixed(1)+'k':Math.round(peakFreq))+'Hz',x,y-7*dpr);
   }
   if(r.subHarmonics){
     r.subHarmonics.forEach(sh=>{
@@ -1040,17 +1042,17 @@ function drawHarmonicCanvas(r){
       const peakFreq=peakBin*r.binHz;
       const x=toX(peakFreq),y=pad.t+ph-(peakAmp/specMax)*ph*0.95;
       const subColor='#ffa040';
-      ctx.strokeStyle=subColor+'88';ctx.lineWidth=1.5*devicePixelRatio;ctx.setLineDash([2*devicePixelRatio,4*devicePixelRatio]);
-      ctx.beginPath();ctx.moveTo(x,pad.t+ph);ctx.lineTo(x,y+8*devicePixelRatio);ctx.stroke();ctx.setLineDash([]);
-      const ds=5*devicePixelRatio;
+      ctx.strokeStyle=subColor+'88';ctx.lineWidth=1.5*dpr;ctx.setLineDash([2*dpr,4*dpr]);
+      ctx.beginPath();ctx.moveTo(x,pad.t+ph);ctx.lineTo(x,y+8*dpr);ctx.stroke();ctx.setLineDash([]);
+      const ds=5*dpr;
       ctx.beginPath();ctx.moveTo(x,y-ds);ctx.lineTo(x+ds,y);ctx.lineTo(x,y+ds);ctx.lineTo(x-ds,y);ctx.closePath();
       ctx.fillStyle=subColor;ctx.fill();
-      ctx.fillStyle=subColor;ctx.font=`bold ${8*devicePixelRatio}px monospace`;ctx.textAlign='center';
-      ctx.fillText('÷'+sh.divisor,x,y-14*devicePixelRatio);
+      ctx.fillStyle=subColor;ctx.font=`bold ${8*dpr}px monospace`;ctx.textAlign='center';
+      ctx.fillText('÷'+sh.divisor,x,y-14*dpr);
     });
   }
-  ctx.fillStyle='#3a4050';ctx.font=`${8.5*devicePixelRatio}px monospace`;ctx.textAlign='left';
-  ctx.fillText('Hz',pad.l,pad.t+ph+12*devicePixelRatio);
+  ctx.fillStyle='#3a4050';ctx.font=`${8.5*dpr}px monospace`;ctx.textAlign='left';
+  ctx.fillText('Hz',pad.l,pad.t+ph+12*dpr);
 }
 
 // ============================================================
