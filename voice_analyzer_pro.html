@@ -60,8 +60,8 @@
   .score-track{height:8px;border-radius:4px;background:linear-gradient(to right,var(--accent2),var(--accent4),var(--accent));position:relative;}
   .score-marker{position:absolute;top:-4px;width:16px;height:16px;border-radius:50%;background:white;box-shadow:0 0 8px rgba(255,255,255,.5);transform:translateX(-50%);transition:left .8s cubic-bezier(.34,1.56,.64,1);}
 
-  /* サブスコア 6項目 */
-  .sub-scores{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;}
+  /* サブスコア 4項目 */
+  .sub-scores{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:20px;}
   @media(max-width:500px){.sub-scores{grid-template-columns:1fr 1fr;}}
   .sub-score-card{background:#080a0e;border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;}
   .sub-score-label{font-size:.68rem;color:var(--text-dim);margin-bottom:5px;line-height:1.5;}
@@ -422,6 +422,7 @@ function drawWaveform(){
   const wc=document.getElementById('waveCanvas');
   const W=Math.max(1,wc.offsetWidth*dpr),H=70*dpr;
   wc.width=W;wc.height=H;
+  wc.style.height='70px'; // CSS表示サイズを固定してぼやけ・高さ崩れ防止
   const wctx=wc.getContext('2d');wctx.fillStyle='#080a0e';wctx.fillRect(0,0,W,H);
   const raw=audioBuffer.getChannelData(0);
   const fadeLen=Math.floor(audioBuffer.sampleRate*0.2);
@@ -439,6 +440,7 @@ function drawWaveform(){
   // スペクトル
   const sc=document.getElementById('specCanvas');
   sc.width=W;sc.height=H;
+  sc.style.height='70px'; // CSS表示サイズを固定してぼやけ・高さ崩れ防止
   const sctx=sc.getContext('2d');sctx.fillStyle='#080a0e';sctx.fillRect(0,0,W,H);
   const Ns=nextPow2(Math.min(data.length,65536));
   const useLens=Math.min(data.length,Ns);
@@ -986,8 +988,8 @@ function drawHarmonicCanvas(r){
   ctx.strokeStyle='rgba(30,35,48,0.8)';ctx.lineWidth=1;
   for(let i=1;i<=3;i++){const y=pad.t+ph/4*i;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();}
   let tickStep=100;if(maxFreqShow>3000)tickStep=500;if(maxFreqShow>6000)tickStep=1000;
-  ctx.fillStyle='#3a4050';ctx.font=`${8*dpr}px monospace`;ctx.textAlign='center';
-  ctx.fillText('30',toX(30),pad.t+ph+12*dpr);
+  ctx.fillStyle='#3a4050';ctx.font=`${8*dpr}px monospace`;ctx.textAlign='left';
+  ctx.fillText('30Hz',pad.l,pad.t+ph+12*dpr);
   const freqTicks=[];
   for(let f=tickStep;f<maxFreqShow;f+=tickStep){if(f>=minFreqShow)freqTicks.push(f);}
   ctx.strokeStyle='rgba(30,35,48,0.6)';ctx.lineWidth=1;
@@ -1051,8 +1053,7 @@ function drawHarmonicCanvas(r){
       ctx.fillText('÷'+sh.divisor,x,y-14*dpr);
     });
   }
-  ctx.fillStyle='#3a4050';ctx.font=`${8.5*dpr}px monospace`;ctx.textAlign='left';
-  ctx.fillText('Hz',pad.l,pad.t+ph+12*dpr);
+  // Hz軸ラベルは30Hzと統合済み
 }
 
 // ============================================================
