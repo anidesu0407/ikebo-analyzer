@@ -753,7 +753,7 @@ async function analyzeAudio(){
 
   // --- 2. フレームごと自己相関 + Voiced Frame Detection ---
   const frameSize=4096,hopSize=512;
-  const minLag=Math.max(1,Math.floor(sampleRate/700)),maxLag=Math.floor(sampleRate/70);
+  const minLag=Math.max(1,Math.floor(sampleRate/700)),maxLag=Math.floor(sampleRate/60);
   const pitchValues=[];
   const rmsValues=[];
 
@@ -791,7 +791,7 @@ async function analyzeAudio(){
     const candPitch=sampleRate/bestLag;
 
     // Voiced Frame Detection: ピッチ範囲外を除外（70〜700Hz）
-    if(candPitch<70||candPitch>700) continue;
+    if(candPitch<60||candPitch>700) continue;
 
     // 自己相関の信頼度チェック（正規化相関係数＋ピーク鋭さ）
     // 裏声は倍音が弱く信頼度が低く出るので閾値を非常に緩めに設定
@@ -813,7 +813,7 @@ async function analyzeAudio(){
   const medianPitch=sortedP[Math.floor(sortedP.length/2)];
 
   // FFTスペクトル補正＋放物線補間
-  const sLo=Math.max(Math.round(80/binHz),Math.round(medianPitch*0.85/binHz));
+  const sLo=Math.max(Math.round(60/binHz),Math.round(medianPitch*0.85/binHz));
   const sHi=Math.min(Math.round(medianPitch*1.15/binHz),half-1);
   let peakBin=Math.min(sLo,half-1),peakAmp=0;
   if(sLo<=sHi){
@@ -868,6 +868,7 @@ async function analyzeAudio(){
   // --- 6. 1/fゆらぎ ---
   const voicedPitches=pitchValues.filter(p=>p>0);
   let flickerSlope=0,flickerScore=50;
+  let flickerOk=false;
   let flickerSeries=voicedPitches;
   if(isFinite(medianPitch)&&medianPitch>0){
     const lo=medianPitch*0.6,hi=medianPitch*1.4;
@@ -890,6 +891,7 @@ async function analyzeAudio(){
       flickerSlope=lr.slope;
       const dist=Math.abs(flickerSlope+1.0);
       flickerScore=Math.max(0,Math.min(100,Math.round(100-dist*70)));
+      flickerOk=true;
     }
   }
 
@@ -935,7 +937,8 @@ async function analyzeAudio(){
   const trimmedP=[...sortedP]
     .slice(Math.floor(sortedP.length*0.15),Math.floor(sortedP.length*0.85))
     .filter(p=>p>medianPitch*0.5&&p<medianPitch*2.0);
-  const intonationSemitones=(trimmedP.length>1&&trimmedP[0]>0)
+  const intonationOk=(trimmedP.length>1&&trimmedP[0]>0);
+  const intonationSemitones=intonationOk
     ? 12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]) : 0;
   // 抑揚スコア：3〜10半音が理想、単調すぎ・過剰すぎはペナルティ
   const intonationScore=Math.max(0,Math.min(100,Math.round(
@@ -958,6 +961,8 @@ async function analyzeAudio(){
     stabilityScore*0.25+
     intonationScore*0.10
   );
+  const flickerDisplayScore=flickerOk?flickerScore:0;
+  const intonationDisplayScore=intonationOk?intonationScore:0;
 
   const clipRatio=raw.length>0?clipCount/raw.length:0;
   const qualityNotes=[];
@@ -1028,7 +1033,8 @@ async function analyzeAudio(){
     isFemale,genderLabel,voiceType,
     vClass,vTitle,vIcon,vDesc,
     frames:pitchValues.length,spectrum,half,binHz,sampleRate,subHarmonics,
-    qualityNotes,qualityScore,qualityLabel,noiseLabel,noiseRatio,voicedRatio,durationSec,rawPeak,clipRatio
+    qualityNotes,qualityScore,qualityLabel,noiseLabel,noiseRatio,voicedRatio,durationSec,rawPeak,clipRatio,
+    flickerOk,intonationOk,flickerDisplayScore,intonationDisplayScore
   };
   let consistencyLabel='初回';
   let consistencyScore=null;
@@ -1134,16 +1140,38 @@ function displayResults(r){
   document.getElementById('metHRatio').textContent=r.detectedCount+' / 11';
   document.getElementById('metHRatio').className='metric-value '+cc(r.richScore);
   document.getElementById('metHRatioSub').textContent='強さ: '+(r.harmonicRichness*100).toFixed(1)+'%　検出数: '+r.detectedCount+'/11倍音';
-  document.getElementById('metSlope').textContent=r.flickerSlope.toFixed(2);
-  document.getElementById('metSlope').className='metric-value '+flickerCC(r.flickerSlope);
+  if(r.flickerOk===false){
+    document.getElementById('metSlope').textContent='解析不可';
+    document.getElementById('metSlope').className='metric-value warn';
+  }else{
+    document.getElementById('metSlope').textContent=r.flickerSlope.toFixed(2);
+    document.getElementById('metSlope').className='metric-value '+flickerCC(r.flickerSlope);
+  }
   // Jitter: ブラウザ基準 1%以下→緑、2%以下→黄、それ以上→赤
   document.getElementById('metJitter').textContent=r.jitter.toFixed(3)+'%';
   document.getElementById('metJitter').className='metric-value '+(r.jitter<1.0?'good':r.jitter<2.0?'warn':'bad');
   // Shimmer: ブラウザ基準 1dB以下→緑、2dB以下→黄、それ以上→赤
   document.getElementById('metShimmer').textContent=r.shimmer.toFixed(2)+' dB';
   document.getElementById('metShimmer').className='metric-value '+(r.shimmer<1.0?'good':r.shimmer<2.0?'warn':'bad');
-  document.getElementById('metIntonation').textContent=r.intonationSemitones.toFixed(1)+' st';
-  document.getElementById('metIntonation').className='metric-value '+(r.intonationSemitones>=3&&r.intonationSemitones<=10?'good':r.intonationSemitones>=1?'warn':'bad');
+  if(r.intonationOk===false){
+    document.getElementById('metIntonation').textContent='解析不可';
+    document.getElementById('metIntonation').className='metric-value warn';
+  }else{
+    document.getElementById('metIntonation').textContent=r.intonationSemitones.toFixed(1)+' st';
+    document.getElementById('metIntonation').className='metric-value '+(r.intonationSemitones>=3&&r.intonationSemitones<=10?'good':r.intonationSemitones>=1?'warn':'bad');
+  }
+  if(r.flickerOk===false){
+    const subFlicker=document.getElementById('subFlicker');
+    const subFlickerBar=document.getElementById('subFlickerBar');
+    if(subFlicker){subFlicker.textContent='解析不可';subFlicker.className='sub-score-val warn';}
+    if(subFlickerBar){subFlickerBar.style.width='0%';subFlickerBar.style.background='var(--accent4)';}
+  }
+  if(r.intonationOk===false){
+    const subIntonation=document.getElementById('subIntonation');
+    const subIntonationBar=document.getElementById('subIntonationBar');
+    if(subIntonation){subIntonation.textContent='解析不可';subIntonation.className='sub-score-val warn';}
+    if(subIntonationBar){subIntonationBar.style.width='0%';subIntonationBar.style.background='var(--accent4)';}
+  }
 
   // レーダーチャート
   requestAnimationFrame(()=>drawRadar(r));
@@ -1177,7 +1205,9 @@ function drawRadar(r){
   ctx.clearRect(0,0,SIZE,SIZE);
   const cx=SIZE/2,cy=SIZE/2,maxR=SIZE*0.32;// 少し小さくしてラベル余白確保
   const labels=['倍音','ゆらぎ','安定性','抑揚'];
-  const scores=[r.richScore,r.flickerScore,r.stabilityScore,r.intonationScore];
+  const flickerScore=r.flickerOk===false?0:r.flickerScore;
+  const intonationScore=r.intonationOk===false?0:r.intonationScore;
+  const scores=[r.richScore,flickerScore,r.stabilityScore,intonationScore];
   const n=4;
   const angle=i=>-Math.PI/2+(2*Math.PI/n)*i;
 
