@@ -342,6 +342,7 @@ let lastResult=null;
 let currentObjectUrl=null;
 let recorderMimeType='';
 let discardRecording=false;
+let recordingSessionId=0;
 function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
 
 function revokeAudioUrl(){
@@ -510,6 +511,8 @@ async function toggleRecording(){
     clearAudioSource();
     document.getElementById('micAnalyzeBtn').disabled=true;
     discardRecording=false;
+    recordingSessionId++;
+    const sessionId=recordingSessionId;
     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
     recordedChunks=[];recordSeconds=0;
     const options=recorderMimeType?{mimeType:recorderMimeType}:undefined;
@@ -521,6 +524,7 @@ async function toggleRecording(){
     }
     mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)recordedChunks.push(e.data);};
     mediaRecorder.onstop=async()=>{
+      if(sessionId!==recordingSessionId) return;
       if(discardRecording){
         discardRecording=false;
         recordedChunks=[];
