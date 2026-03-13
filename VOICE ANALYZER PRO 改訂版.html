@@ -109,7 +109,9 @@
   .share-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
 
   .prep-tips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
-  .prep-tip{font-size:.72rem;color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:999px;background:#0c0f15;}
+  .prep-tip{font-size:.72rem;color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:999px;background:#0c0f15;transition:all .2s ease;}
+  .prep-tip.ok{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow);}
+  .prep-tip.bad{border-color:var(--accent2);color:var(--accent2);}
 
   /* アドバイスボックス */
   .advice-box{background:linear-gradient(135deg,#0f1f18,#0f1020);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-top:16px;}
@@ -159,10 +161,10 @@
     <button class="tab-btn" id="tabMic" onclick="switchInputTab('mic')">🎙️ マイクで録音</button>
   </div>
   <div class="prep-tips">
-    <span class="prep-tip">静かな部屋</span>
-    <span class="prep-tip">距離10〜15cm</span>
-    <span class="prep-tip">5秒以上</span>
-    <span class="prep-tip">クリップ注意</span>
+    <span class="prep-tip" id="tipQuiet">静かな部屋</span>
+    <span class="prep-tip" id="tipDistance">距離10〜15cm</span>
+    <span class="prep-tip" id="tipDuration">5秒以上</span>
+    <span class="prep-tip" id="tipClip">クリップ注意</span>
   </div>
   <div id="fileMode">
     <div class="upload-zone" id="dropZone">
@@ -405,6 +407,38 @@ function resetAnalysisUI(){
   document.getElementById('resultCard').classList.add('hidden');
   document.getElementById('loadingCard').classList.add('hidden');
   document.getElementById('retakeBox').classList.add('hidden');
+  resetPrepTips();
+}
+
+function setTipState(el,state){
+  if(!el) return;
+  el.classList.remove('ok','bad');
+  if(state==='ok') el.classList.add('ok');
+  else if(state==='bad') el.classList.add('bad');
+}
+
+function resetPrepTips(){
+  ['tipQuiet','tipDistance','tipDuration','tipClip'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.classList.remove('ok','bad');
+  });
+}
+
+function updatePrepTips(r){
+  if(!r) return;
+  const quietOk=typeof r.noiseRatio==='number' ? r.noiseRatio<0.22 : null;
+  const durOk=typeof r.durationSec==='number' ? r.durationSec>=5 : null;
+  const clipOk=typeof r.clipRatio==='number' ? r.clipRatio<=0.005 : null;
+  let distOk=null;
+  if(typeof r.rawPeak==='number' && typeof r.clipRatio==='number'){
+    const tooLow=r.rawPeak<0.05;
+    const tooHot=r.clipRatio>0.005;
+    distOk=!(tooLow||tooHot);
+  }
+  setTipState(document.getElementById('tipQuiet'), quietOk===null?null:(quietOk?'ok':'bad'));
+  setTipState(document.getElementById('tipDistance'), distOk===null?null:(distOk?'ok':'bad'));
+  setTipState(document.getElementById('tipDuration'), durOk===null?null:(durOk?'ok':'bad'));
+  setTipState(document.getElementById('tipClip'), clipOk===null?null:(clipOk?'ok':'bad'));
 }
 
 function getSupportedMimeType(){
@@ -839,12 +873,21 @@ async function analyzeAudio(){
   const richScore=Math.round(countScore*0.6+strengthScore*0.4);
 
   // --- 6. 1/fゆらぎ ---
-  const flickerPitches=pitchValues.filter(p=>p>medianPitch*0.8&&p<medianPitch*1.2);
+  const voicedPitches=pitchValues.filter(p=>p>0);
   let flickerSlope=0,flickerScore=50;
-  if(flickerPitches.length>=8){
-    const N2=nextPow2(flickerPitches.length);
+  let flickerSeries=voicedPitches;
+  if(isFinite(medianPitch)&&medianPitch>0){
+    const lo=medianPitch*0.6,hi=medianPitch*1.4;
+    const inRange=voicedPitches.filter(p=>p>=lo&&p<=hi);
+    if(inRange.length>=8) flickerSeries=inRange;
+  }
+  if(flickerSeries.length>=8){
+    const N2=nextPow2(flickerSeries.length);
     const padded2=new Float32Array(N2);
-    for(let i=0;i<flickerPitches.length;i++) padded2[i]=flickerPitches[i]-medianPitch;
+    const center=(isFinite(medianPitch)&&medianPitch>0)
+      ? medianPitch
+      : flickerSeries.reduce((a,b)=>a+b,0)/flickerSeries.length;
+    for(let i=0;i<flickerSeries.length;i++) padded2[i]=flickerSeries[i]-center;
     const spec2=fftMagnitude(padded2);
     const half2=Math.floor(N2/2);
     const logFreqs=[],logPowers=[];
@@ -992,7 +1035,7 @@ async function analyzeAudio(){
     isFemale,genderLabel,voiceType,
     vClass,vTitle,vIcon,vDesc,
     frames:pitchValues.length,spectrum,half,binHz,sampleRate,subHarmonics,
-    qualityNotes,qualityScore,qualityLabel,noiseLabel,noiseRatio,voicedRatio,durationSec
+    qualityNotes,qualityScore,qualityLabel,noiseLabel,noiseRatio,voicedRatio,durationSec,rawPeak,clipRatio
   };
   let consistencyLabel='初回';
   let consistencyScore=null;
@@ -1029,6 +1072,7 @@ function displayResults(r){
   }else{
     retakeBox.classList.add('hidden');
   }
+  updatePrepTips(r);
   const qualitySub=document.getElementById('qualitySub');
   const qualityLabel=document.getElementById('qualityLabel');
   const qualityScore=document.getElementById('qualityScore');
