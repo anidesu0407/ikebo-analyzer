@@ -759,20 +759,15 @@ async function analyzeAudio(){
 
   // RMS全体の中央値を求めてエネルギー閾値を設定
   const allRms=[];
-  const calibRms=[];
-  const calibLen=Math.min(stableData.length,Math.floor(sampleRate*3));
   for(let offset=0;offset+frameSize<stableData.length;offset+=hopSize){
     const frame=stableData.slice(offset,offset+frameSize);
     let rms=0;for(let i=0;i<frameSize;i++)rms+=frame[i]*frame[i];
     const v=Math.sqrt(rms/frameSize);
     allRms.push(v);
-    if(offset<calibLen) calibRms.push(v);
   }
   const sortedRms=[...allRms].sort((a,b)=>a-b);
   const medianRms=(sortedRms.length>0?sortedRms[Math.floor(sortedRms.length/2)]:0)||0.01;
-  const sortedCalib=[...calibRms].sort((a,b)=>a-b);
-  const medianCalib=(sortedCalib.length>0?sortedCalib[Math.floor(sortedCalib.length/2)]:medianRms)||medianRms;
-  const energyThreshold=Math.max(medianRms*0.20,medianCalib*0.25,0.005);
+  const energyThreshold=Math.max(medianRms*0.20,0.005);
   const totalFrames=allRms.length;
 
   for(let offset=0;offset+frameSize<stableData.length;offset+=hopSize){
@@ -803,8 +798,6 @@ async function analyzeAudio(){
     let power=0;for(let i=0;i<frameSize;i++)power+=frame[i]*frame[i];
     const normalizedAc=power>0?bestVal/power:0;
     if(normalizedAc<0.05) continue;
-    const peakRatio=secondVal>0?bestVal/secondVal:bestVal;
-    if(peakRatio<1.05) continue;
 
     pitchValues.push(candPitch);
     rmsValues.push(rms);
