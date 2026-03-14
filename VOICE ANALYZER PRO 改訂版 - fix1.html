@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VOICE ANALYZER PRO</title>
+<title>VOICE ANALYZER PRO – 本格いい声診断</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Space+Mono:wght@400;700&display=swap');
   :root{--bg:#0a0c10;--panel:#111318;--border:#1e2330;--accent:#4ff0b0;--accent2:#ff6b6b;--accent3:#7eb8ff;--accent4:#ffd166;--accent5:#c084fc;--text:#c8d0e0;--text-dim:#8a9ab0;--glow:0 0 20px rgba(79,240,176,0.3);}
@@ -17,6 +17,10 @@
   .tab-row{display:flex;gap:8px;margin-bottom:20px;}
   .tab-btn{flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'Space Mono',monospace;font-size:.75rem;cursor:pointer;transition:all .2s;}
   .tab-btn.active{background:rgba(79,240,176,.1);border-color:var(--accent);color:var(--accent);box-shadow:var(--glow);}
+  .prep-tips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+  .prep-tip{font-size:.72rem;color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:999px;background:#0c0f15;transition:all .2s ease;}
+  .prep-tip.ok{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow);}
+  .prep-tip.bad{border-color:var(--accent2);color:var(--accent2);}
   .upload-zone{border:2px dashed var(--border);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .3s ease;}
   .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(79,240,176,.04);box-shadow:var(--glow);}
   .upload-zone input{display:none;}
@@ -108,25 +112,12 @@
   .howto li::before{content:'›';position:absolute;left:0;color:var(--accent);}
   .share-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
 
-  .prep-tips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
-  .prep-tip{font-size:.72rem;color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:999px;background:#0c0f15;transition:all .2s ease;}
-  .prep-tip.ok{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow);}
-  .prep-tip.bad{border-color:var(--accent2);color:var(--accent2);}
-
   /* アドバイスボックス */
   .advice-box{background:linear-gradient(135deg,#0f1f18,#0f1020);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-top:16px;}
   .advice-title{font-size:.75rem;color:var(--accent3);margin-bottom:6px;font-family:'Space Mono',monospace;}
   .advice-text{font-size:.88rem;color:var(--text-dim);line-height:1.8;white-space:pre-line;}
   .metric-desc{font-size:.7rem;color:#4a5568;margin-top:5px;line-height:1.5;border-top:1px solid #1a1e28;padding-top:5px;}
   .metric-desc b{color:#6a7588;}
-
-  .quality-box{background:#0b0f16;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:18px;}
-  .quality-title{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--accent3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;}
-  .quality-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
-  .quality-item{background:#080a0e;border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
-  .quality-label{font-size:.7rem;color:var(--text-dim);}
-  .quality-value{font-family:'Space Mono',monospace;font-size:.9rem;}
-  .quality-sub{margin-top:8px;font-size:.75rem;color:var(--text-dim);}
 
   /* キャラクター判定 */
   .voice-type-box{border-radius:14px;padding:18px 22px;margin-bottom:20px;position:relative;overflow:hidden;}
@@ -211,17 +202,6 @@
   <div class="retake-box hidden" id="retakeBox">
     <div class="retake-title">撮り直し推奨</div>
     <div class="retake-text" id="retakeText"></div>
-  </div>
-
-  <div class="quality-box" id="qualityBox">
-    <div class="quality-title">計測品質</div>
-    <div class="quality-grid">
-      <div class="quality-item"><span class="quality-label">信頼度</span><span class="quality-value" id="qualityLabel">−</span></div>
-      <div class="quality-item"><span class="quality-label">品質スコア</span><span class="quality-value" id="qualityScore">−</span></div>
-      <div class="quality-item"><span class="quality-label">再現性</span><span class="quality-value" id="qualityConsistency">−</span></div>
-      <div class="quality-item"><span class="quality-label">環境ノイズ</span><span class="quality-value" id="qualityNoise">−</span></div>
-    </div>
-    <div class="quality-sub" id="qualitySub">−</div>
   </div>
 
   <!-- 判定 -->
@@ -369,11 +349,8 @@
 // ============================================================
 let audioBuffer=null,audioCtx=null,mediaRecorder=null,recordedChunks=[],timerInterval=null,recordSeconds=0;
 let lastResult=null;
-let previousResult=null;
 let currentObjectUrl=null;
 let recorderMimeType='';
-let discardRecording=false;
-let recordingSessionId=0;
 function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
 
 function revokeAudioUrl(){
@@ -487,9 +464,8 @@ function updateMicSupportUI(){
   }
 }
 
-function stopRecording(silent,discard){
+function stopRecording(silent){
   if(mediaRecorder&&mediaRecorder.state==='recording'){
-    if(discard) discardRecording=true;
     mediaRecorder.stop();
     if(mediaRecorder.stream) mediaRecorder.stream.getTracks().forEach(t=>t.stop());
   }
@@ -505,7 +481,7 @@ function stopRecording(silent,discard){
 // タブ切り替え（入力）
 // ============================================================
 function switchInputTab(mode){
-  stopRecording(true,true);
+  stopRecording(true);
   document.getElementById('tabFile').classList.toggle('active',mode==='file');
   document.getElementById('tabMic').classList.toggle('active',mode==='mic');
   document.getElementById('fileMode').classList.toggle('hidden',mode!=='file');
@@ -529,15 +505,9 @@ dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over')
 dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);});
 
 async function loadFile(file){
-  if(!file)return;
-  const isAudioType=!!(file.type&&file.type.startsWith('audio/'));
-  const isAudioExt=/\.(wav|mp3|m4a|ogg|webm|aac|flac)$/i.test(file.name||'');
-  if(!isAudioType&&!isAudioExt){
-    alert('音声ファイルを選択してください。対応フォーマット（WAV・MP3・M4A・OGG・WEBM など）');
-    return;
-  }
+  if(!file||!file.type.startsWith('audio/'))return;
   document.getElementById('fileName').textContent=file.name;
-  stopRecording(true,true);
+  stopRecording(true);
   resetAnalysisUI();
   clearAudioSource();
   try{
@@ -562,16 +532,13 @@ async function toggleRecording(){
     return;
   }
   if(mediaRecorder&&mediaRecorder.state==='recording'){
-    stopRecording(false,false);
+    stopRecording(false);
     return;
   }
   try{
     resetAnalysisUI();
     clearAudioSource();
     document.getElementById('micAnalyzeBtn').disabled=true;
-    discardRecording=false;
-    recordingSessionId++;
-    const sessionId=recordingSessionId;
     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
     recordedChunks=[];recordSeconds=0;
     const options=recorderMimeType?{mimeType:recorderMimeType}:undefined;
@@ -583,13 +550,6 @@ async function toggleRecording(){
     }
     mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)recordedChunks.push(e.data);};
     mediaRecorder.onstop=async()=>{
-      if(sessionId!==recordingSessionId) return;
-      if(discardRecording){
-        discardRecording=false;
-        recordedChunks=[];
-        return;
-      }
-      discardRecording=false;
       const mimeType=mediaRecorder.mimeType||recorderMimeType||'audio/webm';
       const blob=new Blob(recordedChunks,{type:mimeType});
       const url=URL.createObjectURL(blob);
@@ -699,27 +659,8 @@ async function analyzeAudio(){
   let maxAmp=0;
   for(let i=0;i<cleaned.length;i++) if(Math.abs(cleaned[i])>maxAmp) maxAmp=Math.abs(cleaned[i]);
   if(maxAmp>0) for(let i=0;i<cleaned.length;i++) cleaned[i]/=maxAmp;
-  // 低域のラフ推定（HPF自動調整用）
-  let roughPitch=0;
-  const roughFrameSize=Math.min(4096,cleaned.length);
-  if(roughFrameSize>=256){
-    const roughStart=Math.max(0,Math.floor(cleaned.length/2-roughFrameSize/2));
-    const roughFrame=cleaned.slice(roughStart,roughStart+roughFrameSize);
-    const rMinLag=Math.max(1,Math.floor(sampleRate/700));
-    const rMaxLag=Math.floor(sampleRate/70);
-    let bestLag=rMinLag,bestVal=0;
-    let power=0;for(let i=0;i<roughFrameSize;i++)power+=roughFrame[i]*roughFrame[i];
-    for(let lag=rMinLag;lag<=rMaxLag;lag++){
-      let s=0;for(let i=0;i<roughFrameSize-rMaxLag;i++)s+=roughFrame[i]*roughFrame[i+lag];
-      if(s>bestVal){bestVal=s;bestLag=lag;}
-    }
-    const norm=power>0?bestVal/power:0;
-    const cand=sampleRate/bestLag;
-    if(norm>0.05&&cand>=50&&cand<=300) roughPitch=cand;
-  }
-  // ハイパスフィルタ（可変、1次IIRフィルタ）
-  const hpCut=roughPitch?Math.max(50,Math.min(120,roughPitch*0.5)):80;
-  const hpAlpha=1/(1+2*Math.PI*(hpCut/sampleRate));
+  // ハイパスフィルタ（80Hz、1次IIRフィルタ）
+  const hpAlpha=1/(1+2*Math.PI*(80/sampleRate));
   const hpData=new Float32Array(cleaned.length);
   hpData[0]=cleaned[0];
   for(let i=1;i<cleaned.length;i++) hpData[i]=hpAlpha*(hpData[i-1]+cleaned[i]-cleaned[i-1]);
@@ -755,20 +696,14 @@ async function analyzeAudio(){
 
   // RMS全体の中央値を求めてエネルギー閾値を設定
   const allRms=[];
-  const calibRms=[];
-  const calibLen=Math.min(stableData.length,Math.floor(sampleRate*3));
   for(let offset=0;offset+frameSize<stableData.length;offset+=hopSize){
     const frame=stableData.slice(offset,offset+frameSize);
     let rms=0;for(let i=0;i<frameSize;i++)rms+=frame[i]*frame[i];
-    const v=Math.sqrt(rms/frameSize);
-    allRms.push(v);
-    if(offset<calibLen) calibRms.push(v);
+    allRms.push(Math.sqrt(rms/frameSize));
   }
   const sortedRms=[...allRms].sort((a,b)=>a-b);
   const medianRms=(sortedRms.length>0?sortedRms[Math.floor(sortedRms.length/2)]:0)||0.01;
-  const sortedCalib=[...calibRms].sort((a,b)=>a-b);
-  const medianCalib=(sortedCalib.length>0?sortedCalib[Math.floor(sortedCalib.length/2)]:medianRms)||medianRms;
-  const energyThreshold=Math.max(medianRms*0.20,medianCalib*0.25,0.005);
+  const energyThreshold=Math.max(medianRms*0.20,0.005);
   const totalFrames=allRms.length;
 
   for(let offset=0;offset+frameSize<stableData.length;offset+=hopSize){
@@ -783,24 +718,19 @@ async function analyzeAudio(){
     for(let lag=minLag;lag<=maxLag;lag++){
       let s=0;for(let i=0;i<frameSize-maxLag;i++)s+=frame[i]*frame[i+lag];ac[lag]=s;
     }
-    let bestLag=minLag,bestVal=ac[minLag],secondVal=ac[minLag];
-    for(let lag=minLag+1;lag<=maxLag;lag++){
-      if(ac[lag]>bestVal){secondVal=bestVal;bestVal=ac[lag];bestLag=lag;}
-      else if(ac[lag]>secondVal){secondVal=ac[lag];}
-    }
+    let bestLag=minLag,bestVal=ac[minLag];
+    for(let lag=minLag+1;lag<=maxLag;lag++){if(ac[lag]>bestVal){bestVal=ac[lag];bestLag=lag;}}
 
     const candPitch=sampleRate/bestLag;
 
     // Voiced Frame Detection: ピッチ範囲外を除外（70〜700Hz）
     if(candPitch<70||candPitch>700) continue;
 
-    // 自己相関の信頼度チェック（正規化相関係数＋ピーク鋭さ）
+    // 自己相関の信頼度チェック（正規化相関係数）
     // 裏声は倍音が弱く信頼度が低く出るので閾値を非常に緩めに設定
     let power=0;for(let i=0;i<frameSize;i++)power+=frame[i]*frame[i];
     const normalizedAc=power>0?bestVal/power:0;
     if(normalizedAc<0.05) continue;
-    const peakRatio=secondVal>0?bestVal/secondVal:bestVal;
-    if(peakRatio<1.05) continue;
 
     pitchValues.push(candPitch);
     rmsValues.push(rms);
@@ -835,7 +765,7 @@ async function analyzeAudio(){
   const harmonicEnergies=[];
   for(let h=1;h<=12;h++){
     const centerHz=safePitch*h;
-    const loHz=centerHz*0.89,hiHz=centerHz*1.11;
+    const loHz=centerHz*0.90,hiHz=centerHz*1.10;
     const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
     let peakVal=0;
     if(lo<=hi) for(let b=lo;b<=hi;b++) if(spectrum[b]>peakVal) peakVal=spectrum[b];
@@ -845,8 +775,8 @@ async function analyzeAudio(){
   const harmonicRatios=harmonicEnergies.map(e=>e/fundamentalEnergy);
 
   // --- 4. 倍音スコア（数×強さの組み合わせ）---
-  // 基音の8%以上の強さで検出された倍音を「有効」とカウント（2〜12倍音の11個）
-  const detectedCount=harmonicRatios.slice(1).filter(h=>h>=0.08).length;
+  // 基音の10%以上の強さで検出された倍音を「有効」とカウント（2〜12倍音の11個）
+  const detectedCount=harmonicRatios.slice(1).filter(h=>h>=0.10).length;
   // 倍音の強さ（2〜12倍音の全11個の平均比率で統一）
   const richRatios=harmonicRatios.slice(1); // 11個
   const harmonicRichness=richRatios.reduce((a,b)=>a+b,0)/richRatios.length;
@@ -959,23 +889,6 @@ async function analyzeAudio(){
   if(rawPeak<0.05) qualityNotes.push('音量が小さく、解析精度が落ちやすいです（マイクに近づけて録音）');
   if(clipRatio>0.005) qualityNotes.push('入力が大きすぎて歪んでいる可能性があります（少し離れて録音）');
   if(voicedRatio<0.25) qualityNotes.push('有声区間が短い可能性があります（無音や息が多い場合は撮り直し推奨）');
-  const noiseFloor=sortedRms.length>0?sortedRms[Math.floor(sortedRms.length*0.1)]:0;
-  const noiseRatio=medianRms>0?noiseFloor/medianRms:1;
-  if(noiseRatio>0.30) qualityNotes.push('環境ノイズが多い可能性があります（静かな部屋で録音）');
-  let qualityScore=100;
-  if(durationSec<3.0) qualityScore-=30;
-  else if(durationSec<5.0) qualityScore-=15;
-  if(rawPeak<0.02) qualityScore-=35;
-  else if(rawPeak<0.05) qualityScore-=20;
-  if(clipRatio>0.02) qualityScore-=40;
-  else if(clipRatio>0.005) qualityScore-=25;
-  if(voicedRatio<0.15) qualityScore-=40;
-  else if(voicedRatio<0.25) qualityScore-=25;
-  if(noiseRatio>0.40) qualityScore-=30;
-  else if(noiseRatio>0.30) qualityScore-=15;
-  qualityScore=Math.max(0,Math.min(100,Math.round(qualityScore)));
-  const qualityLabel=qualityScore>=80?'高':qualityScore>=60?'中':'低';
-  const noiseLabel=noiseRatio<0.12?'低':noiseRatio<0.30?'中':'高';
 
   // --- 副倍音検出 ---
   const subHarmonics=[];
@@ -993,7 +906,7 @@ async function analyzeAudio(){
 
   // --- 判定 ---
   let vClass,vIcon,vTitle,vDesc;
-  if(totalScore>=79){vClass='good';vIcon='🎙️';vTitle='いい声認定！';vDesc='声の全指標が高水準です。'+genderLabel+'らしい豊かな倍音と安定感を持った、本格的ないい声の持ち主です。';}
+  if(totalScore>=85){vClass='good';vIcon='🎙️';vTitle='いい声認定！';vDesc='声の全指標が高水準です。'+genderLabel+'らしい豊かな倍音と安定感を持った、本格的ないい声の持ち主です。';}
   else if(totalScore>=70){vClass='good';vIcon='✨';vTitle='かなりいい声！';vDesc='ほとんどの指標が優秀です。あと一歩でトップクラスの声になれます。';}
   else if(totalScore>=55){vClass='warn';vIcon='🎶';vTitle='惜しい！もう一息';vDesc='声の素地はあります。弱い指標を重点的にトレーニングしましょう。';}
   else if(totalScore>=35){vClass='warn';vIcon='📊';vTitle='伸びしろあり';vDesc='いくつかの指標で改善の余地があります。発声練習で大きく伸びる可能性があります。';}
@@ -1025,19 +938,6 @@ async function analyzeAudio(){
     qualityNotes,qualityScore,qualityLabel,noiseLabel,noiseRatio,voicedRatio,durationSec,
     rawPeak,clipRatio
   };
-  let consistencyLabel='初回';
-  let consistencyScore=null;
-  if(previousResult){
-    const scoreDiff=Math.abs(lastResult.totalScore-previousResult.totalScore);
-    const pitchDiff=Math.abs(lastResult.meanPitch-previousResult.meanPitch);
-    const jitterDiff=Math.abs(lastResult.jitter-previousResult.jitter);
-    const rawScore=100-(scoreDiff*2+pitchDiff*0.5+jitterDiff*10);
-    consistencyScore=Math.max(0,Math.min(100,Math.round(rawScore)));
-    consistencyLabel=consistencyScore>=80?'高':consistencyScore>=60?'中':'低';
-  }
-  lastResult.consistencyScore=consistencyScore;
-  lastResult.consistencyLabel=consistencyLabel;
-  previousResult=lastResult;
 
   document.getElementById('loadingCard').classList.add('hidden');
   displayResults(lastResult);
@@ -1061,19 +961,6 @@ function displayResults(r){
     retakeBox.classList.add('hidden');
   }
   updatePrepTips(r);
-  const qualitySub=document.getElementById('qualitySub');
-  const qualityLabel=document.getElementById('qualityLabel');
-  const qualityScore=document.getElementById('qualityScore');
-  const qualityConsistency=document.getElementById('qualityConsistency');
-  const qualityNoise=document.getElementById('qualityNoise');
-  qualityLabel.textContent=r.qualityLabel||'−';
-  qualityScore.textContent=(typeof r.qualityScore==='number'?r.qualityScore+'点':'−');
-  qualityConsistency.textContent=r.consistencyLabel||'−';
-  qualityNoise.textContent=r.noiseLabel||'−';
-  const dur=typeof r.durationSec==='number'?r.durationSec.toFixed(1)+'s':'−';
-  const voicedPct=typeof r.voicedRatio==='number'?Math.round(r.voicedRatio*100)+'%':'−';
-  const noisePct=typeof r.noiseRatio==='number'?(r.noiseRatio*100).toFixed(0)+'%':'−';
-  qualitySub.textContent=`録音長 ${dur} / 有声率 ${voicedPct} / ノイズ比 ${noisePct}`;
   // 判定
   document.getElementById('verdictBox').className='verdict '+r.vClass;
   document.getElementById('verdictIcon').textContent=r.vIcon;
@@ -1326,7 +1213,7 @@ function drawHarmonicCanvas(r){
   for(let h=0;h<12;h++){
     const centerHz=r.meanPitch*(h+1);
     if(centerHz>maxFreqShow||centerHz<minFreqShow)continue;
-    const loHz=centerHz*0.89,hiHz=centerHz*1.11;
+    const loHz=centerHz*0.90,hiHz=centerHz*1.10;
     const loBin=Math.max(minBin,Math.round(loHz/r.binHz));
     const hiBin=Math.min(Math.round(hiHz/r.binHz),r.half-1);
     let peakBin=loBin,peakAmp=0;
@@ -1588,7 +1475,7 @@ const VOICE_TYPES=[
     traitColor:'#ffd166',
     seiyuuM:['大塚明夫','中田譲治','堀内賢雄'],
     seiyuuF:['林原めぐみ','田中敦子','平野綾'],
-    match:({totalScore})=>totalScore>=79,
+    match:({totalScore})=>totalScore>=82,
   },
   {
     id:'deep_rich',
