@@ -50,6 +50,9 @@
   .canvas-wrap{position:relative;width:100%;margin-bottom:12px;}
   canvas{width:100%;border-radius:8px;background:#080a0e;display:block;}
   .audio-player{width:100%;margin-top:12px;border-radius:8px;accent-color:var(--accent);}
+  .test-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;}
+  .test-label{font-size:.72rem;color:var(--text-dim);font-family:'Space Mono',monospace;}
+  .test-select{background:#0c0f15;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-family:'Space Mono',monospace;font-size:.72rem;}
 
   /* 判定 */
   .verdict{border-radius:12px;padding:18px 22px;display:flex;align-items:center;gap:16px;margin-bottom:20px;}
@@ -186,6 +189,21 @@
     </div>
   </div>
   <audio id="audioPlayer" class="audio-player hidden" controls></audio>
+  <div class="test-row">
+    <span class="test-label">テストトーン</span>
+    <select id="testFreq" class="test-select">
+      <option value="110">110 Hz</option>
+      <option value="220" selected>220 Hz</option>
+      <option value="440">440 Hz</option>
+      <option value="880">880 Hz</option>
+    </select>
+    <select id="testDur" class="test-select">
+      <option value="3">3 秒</option>
+      <option value="5" selected>5 秒</option>
+      <option value="8">8 秒</option>
+    </select>
+    <button class="btn btn-secondary" id="testToneBtn">▶ 生成</button>
+  </div>
 </div>
 
 <!-- 波形 -->
@@ -609,6 +627,16 @@ async function toggleRecording(){
 }
 document.getElementById('micAnalyzeBtn').addEventListener('click',()=>{if(audioBuffer)analyzeAudio();});
 updateMicSupportUI();
+const testToneBtn=document.getElementById('testToneBtn');
+if(testToneBtn){
+  testToneBtn.addEventListener('click',()=>{
+    const fEl=document.getElementById('testFreq');
+    const dEl=document.getElementById('testDur');
+    const freq=Number(fEl&&fEl.value)||220;
+    const dur=Number(dEl&&dEl.value)||5;
+    generateTestTone(freq,dur);
+  });
+}
 
 // ============================================================
 // 波形描画
@@ -659,6 +687,68 @@ function drawWaveform(){
   }
 }
 
+function writeString(view,offset,str){
+  for(let i=0;i<str.length;i++) view.setUint8(offset+i,str.charCodeAt(i));
+}
+
+function bufferToWav(buffer){
+  const numCh=buffer.numberOfChannels;
+  const length=buffer.length;
+  const sampleRate=buffer.sampleRate;
+  const bytesPerSample=2;
+  const blockAlign=numCh*bytesPerSample;
+  const dataSize=length*blockAlign;
+  const buf=new ArrayBuffer(44+dataSize);
+  const view=new DataView(buf);
+  writeString(view,0,'RIFF');
+  view.setUint32(4,36+dataSize,true);
+  writeString(view,8,'WAVE');
+  writeString(view,12,'fmt ');
+  view.setUint32(16,16,true);
+  view.setUint16(20,1,true);
+  view.setUint16(22,numCh,true);
+  view.setUint32(24,sampleRate,true);
+  view.setUint32(28,sampleRate*blockAlign,true);
+  view.setUint16(32,blockAlign,true);
+  view.setUint16(34,16,true);
+  writeString(view,36,'data');
+  view.setUint32(40,dataSize,true);
+  let offset=44;
+  for(let i=0;i<length;i++){
+    for(let ch=0;ch<numCh;ch++){
+      let sample=buffer.getChannelData(ch)[i];
+      sample=Math.max(-1,Math.min(1,sample));
+      view.setInt16(offset,sample<0?sample*0x8000:sample*0x7FFF,true);
+      offset+=2;
+    }
+  }
+  return new Blob([view],{type:'audio/wav'});
+}
+
+function generateTestTone(freq,durationSec){
+  switchInputTab('file');
+  const ctx=getCtx();
+  const sr=ctx.sampleRate;
+  const length=Math.max(1,Math.floor(sr*durationSec));
+  const buf=ctx.createBuffer(1,length,sr);
+  const data=buf.getChannelData(0);
+  const fadeLen=Math.max(1,Math.floor(sr*0.02));
+  for(let i=0;i<length;i++){
+    let amp=0.22;
+    if(i<fadeLen) amp*=i/fadeLen;
+    else if(i>length-fadeLen) amp*=(length-i)/fadeLen;
+    data[i]=Math.sin(2*Math.PI*freq*i/sr)*amp;
+  }
+  audioBuffer=buf;
+  const blob=bufferToWav(buf);
+  const url=URL.createObjectURL(blob);
+  setAudioSource(url);
+  document.getElementById('fileName').textContent='TestTone '+freq+'Hz';
+  analyzeBtn.disabled=false;
+  document.getElementById('micAnalyzeBtn').disabled=true;
+  drawWaveform();
+}
+
 function roughPitchEstimate(data,sampleRate){
   const size=Math.min(4096,data.length);
   if(size<1024) return 0;
@@ -672,7 +762,7 @@ function roughPitchEstimate(data,sampleRate){
   rms=Math.sqrt(rms/size);
   if(rms<0.005) return 0;
   const minLag=Math.max(1,Math.floor(sampleRate/700));
-  const maxLag=Math.floor(sampleRate/70);
+  const maxLag=Math.floor(sampleRate/60);
   let bestLag=minLag,bestVal=0;
   const limit=size-maxLag;
   for(let lag=minLag;lag<=maxLag;lag++){
@@ -685,7 +775,7 @@ function roughPitchEstimate(data,sampleRate){
     if(s>bestVal){bestVal=s;bestLag=lag;}
   }
   const pitch=sampleRate/bestLag;
-  if(pitch<70||pitch>700) return 0;
+  if(pitch<60||pitch>700) return 0;
   return pitch;
 }
 
@@ -858,15 +948,16 @@ async function analyzeAudio(){
   // refinedPitchが0または極端に小さい場合は中央値ピッチで代替
   const safePitch = refinedPitch > 10 ? refinedPitch : medianPitch;
 
-  // --- 3. 倍音エネルギー（各倍音のピーク振幅を使用、safePitch基準）---
+  // --- 3. 倍音エネルギー（帯域エネルギー合計、safePitch基準）---
   const harmonicEnergies=[];
   for(let h=1;h<=12;h++){
     const centerHz=safePitch*h;
-    const loHz=centerHz*0.90,hiHz=centerHz*1.10;
+    const halfWidth=Math.min(Math.max(centerHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
+    const loHz=Math.max(20,centerHz-halfWidth),hiHz=centerHz+halfWidth;
     const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
-    let peakVal=0;
-    if(lo<=hi) for(let b=lo;b<=hi;b++) if(spectrum[b]>peakVal) peakVal=spectrum[b];
-    harmonicEnergies.push(peakVal);
+    let energy=0;
+    if(lo<=hi) for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
+    harmonicEnergies.push(Math.sqrt(energy));
   }
   const fundamentalEnergy=harmonicEnergies[0]||1;
   const harmonicRatios=harmonicEnergies.map(e=>e/fundamentalEnergy);
@@ -897,7 +988,7 @@ async function analyzeAudio(){
 
   // --- 6. 1/fゆらぎ ---
   const flickerPitches=pitchValues.filter(p=>p>medianPitch*0.8&&p<medianPitch*1.2);
-  let flickerSlope=0,flickerScore=50;
+  let flickerSlope=0,flickerScore=50,flickerOk=false;
   if(flickerPitches.length>=8){
     const N2=nextPow2(flickerPitches.length);
     const padded2=new Float32Array(N2);
@@ -911,6 +1002,7 @@ async function analyzeAudio(){
       flickerSlope=lr.slope;
       const dist=Math.abs(flickerSlope+1.0);
       flickerScore=Math.max(0,Math.min(100,Math.round(100-dist*70)));
+      flickerOk=true;
     }
   }
 
@@ -956,16 +1048,17 @@ async function analyzeAudio(){
   const trimmedP=[...sortedP]
     .slice(Math.floor(sortedP.length*0.15),Math.floor(sortedP.length*0.85))
     .filter(p=>p>medianPitch*0.5&&p<medianPitch*2.0);
-  const intonationSemitones=(trimmedP.length>1&&trimmedP[0]>0)
+  const intonationOk=trimmedP.length>1&&trimmedP[0]>0;
+  const intonationSemitones=intonationOk
     ? 12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]) : 0;
   // 抑揚スコア：3〜10半音が理想、単調すぎ・過剰すぎはペナルティ
-  const intonationScore=Math.max(0,Math.min(100,Math.round(
+  const intonationScore=intonationOk?Math.max(0,Math.min(100,Math.round(
     intonationSemitones<1  ? intonationSemitones*20 :
     intonationSemitones<=3 ? 20+(intonationSemitones-1)/2*80 :
     intonationSemitones<=10? 80+(10-intonationSemitones)/7*20 :
     intonationSemitones<=16? 80-(intonationSemitones-10)/6*40 :
     40-(intonationSemitones-16)/8*40
-  )));
+  ))):50;
 
   // --- 10. スコア計算（4軸）---
   // 男女判定：表示用のみ（スコアには影響しない）
@@ -973,12 +1066,12 @@ async function analyzeAudio(){
   const isFemale = safePitch >= 165;
   const genderLabel = safePitch >= 165 ? '女性' : '男性';
 
-  const totalScore=Math.round(
-    richScore*0.40+
-    flickerScore*0.25+
-    stabilityScore*0.25+
-    intonationScore*0.10
-  );
+  const wRich=0.40,wFlicker=0.25,wStab=0.25,wInt=0.10;
+  let weighted=richScore*wRich+stabilityScore*wStab;
+  let weightSum=wRich+wStab;
+  if(flickerOk){weighted+=flickerScore*wFlicker;weightSum+=wFlicker;}
+  if(intonationOk){weighted+=intonationScore*wInt;weightSum+=wInt;}
+  const totalScore=Math.round(weighted/weightSum);
 
   const clipRatio=raw.length>0?clipCount/raw.length:0;
   const qualityNotes=[];
@@ -1009,7 +1102,8 @@ async function analyzeAudio(){
   for(let d=2;d<=4;d++){
     const subHz=safePitch/d;
     if(subHz<20)break;
-    const loHz=subHz*0.85,hiHz=subHz*1.15;
+    const halfWidth=Math.min(Math.max(subHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
+    const loHz=Math.max(20,subHz-halfWidth),hiHz=subHz+halfWidth;
     const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
     let energy=0;
     for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
@@ -1281,6 +1375,13 @@ function drawRadar(r){
 // 倍音バー
 // ============================================================
 const HARMONIC_COLORS=['#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff'];
+const HARMONIC_BAND_RATIO=0.12;
+const HARMONIC_BAND_MIN=20;
+const HARMONIC_BAND_MAX=120;
+function getHarmonicBand(centerHz){
+  const halfWidth=Math.min(Math.max(centerHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
+  return {loHz:centerHz-halfWidth,hiHz:centerHz+halfWidth};
+}
 function buildHarmonicBars(ratios){
   const maxRatio=Math.max(...ratios,0.01);
   const chart=document.getElementById('harmonicChart');
@@ -1351,7 +1452,8 @@ function drawHarmonicCanvas(r){
   for(let h=0;h<12;h++){
     const centerHz=r.meanPitch*(h+1);
     if(centerHz>maxFreqShow||centerHz<minFreqShow)continue;
-    const loHz=centerHz*0.90,hiHz=centerHz*1.10;
+    const band=getHarmonicBand(centerHz);
+    const loHz=Math.max(minFreqShow,band.loHz),hiHz=band.hiHz;
     const loBin=Math.max(minBin,Math.round(loHz/r.binHz));
     const hiBin=Math.min(Math.round(hiHz/r.binHz),r.half-1);
     let peakBin=loBin,peakAmp=0;
@@ -1370,7 +1472,8 @@ function drawHarmonicCanvas(r){
   if(r.subHarmonics){
     r.subHarmonics.forEach(sh=>{
       if(!sh.detected||sh.hz<minFreqShow||sh.hz>maxFreqShow)return;
-      const loHz=sh.hz*0.85,hiHz=sh.hz*1.15;
+      const band=getHarmonicBand(sh.hz);
+      const loHz=Math.max(minFreqShow,band.loHz),hiHz=band.hiHz;
       const loBin=Math.max(1,Math.round(loHz/r.binHz));
       const hiBin=Math.min(Math.round(hiHz/r.binHz),r.half-1);
       let peakBin=loBin,peakAmp=0;
