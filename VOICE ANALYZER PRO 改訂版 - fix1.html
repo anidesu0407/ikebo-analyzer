@@ -70,6 +70,11 @@
   .score-label-row{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text-dim);margin-bottom:6px;font-family:'Space Mono',monospace;}
   .score-track{height:8px;border-radius:4px;background:linear-gradient(to right,var(--accent2),var(--accent4),var(--accent));position:relative;}
   .score-marker{position:absolute;top:-4px;width:16px;height:16px;border-radius:50%;background:white;box-shadow:0 0 8px rgba(255,255,255,.5);transform:translateX(-50%);transition:left .8s cubic-bezier(.34,1.56,.64,1);}
+  .quality-row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px;}
+  .quality-chip{font-size:.72rem;font-family:'Space Mono',monospace;color:var(--text-dim);border:1px solid var(--border);padding:6px 10px;border-radius:999px;background:#0c0f15;transition:all .2s ease;}
+  .quality-chip.good{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow);}
+  .quality-chip.warn{border-color:var(--accent4);color:var(--accent4);}
+  .quality-chip.bad{border-color:var(--accent2);color:var(--accent2);}
 
   /* サブスコア 4項目 */
   .sub-scores{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:20px;}
@@ -233,6 +238,11 @@
       <span style="font-size:.65rem;color:var(--text-dim);">100</span>
     </div>
   </div>
+  <div class="quality-row" id="qualityRow">
+    <span class="quality-chip" id="qualityChip">測定信頼度: −</span>
+    <span class="quality-chip" id="noiseChip">環境ノイズ: −</span>
+    <span class="quality-chip" id="reproChip">再現性: −</span>
+  </div>
 
   <!-- サブスコア 4項目 -->
   <div class="sub-scores">
@@ -349,6 +359,7 @@
 // ============================================================
 let audioBuffer=null,audioCtx=null,mediaRecorder=null,recordedChunks=[],timerInterval=null,recordSeconds=0;
 let lastResult=null;
+let prevSummary=null;
 let currentObjectUrl=null;
 let recorderMimeType='';
 function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
@@ -412,6 +423,30 @@ function updatePrepTips(result){
   setTipState('tipDuration',durOk);
   setTipState('tipClip',clipOk);
   setTipState('tipDistance',distOk);
+}
+
+function makeSummary(r){
+  return {
+    totalScore:r.totalScore,
+    meanPitch:r.meanPitch,
+    richScore:r.richScore,
+    stabilityScore:r.stabilityScore,
+    intonationScore:r.intonationScore
+  };
+}
+
+function calcRepro(r,prev){
+  if(!prev){
+    return {label:'−',cls:'warn',detail:'次回の計測から判定'};
+  }
+  const scoreDiff=Math.abs(r.totalScore-prev.totalScore);
+  const pitchDiff=Math.abs(r.meanPitch-prev.meanPitch);
+  const richDiff=Math.abs(r.richScore-prev.richScore);
+  const stabDiff=Math.abs(r.stabilityScore-prev.stabilityScore);
+  let cls='bad',label='低';
+  if(scoreDiff<=5&&pitchDiff<=10&&richDiff<=10&&stabDiff<=10){cls='good';label='高';}
+  else if(scoreDiff<=12&&pitchDiff<=25&&richDiff<=20&&stabDiff<=20){cls='warn';label='中';}
+  return {label,cls,detail:`ΔS${scoreDiff} / ΔHz${Math.round(pitchDiff)}`};
 }
 
 function getSupportedMimeType(){
@@ -624,6 +659,36 @@ function drawWaveform(){
   }
 }
 
+function roughPitchEstimate(data,sampleRate){
+  const size=Math.min(4096,data.length);
+  if(size<1024) return 0;
+  const start=Math.max(0,Math.floor(data.length/2-size/2));
+  const frame=data.slice(start,start+size);
+  let sum=0;
+  for(let i=0;i<size;i++) sum+=frame[i];
+  const dc=sum/size;
+  let rms=0;
+  for(let i=0;i<size;i++){const v=frame[i]-dc;rms+=v*v;}
+  rms=Math.sqrt(rms/size);
+  if(rms<0.005) return 0;
+  const minLag=Math.max(1,Math.floor(sampleRate/700));
+  const maxLag=Math.floor(sampleRate/70);
+  let bestLag=minLag,bestVal=0;
+  const limit=size-maxLag;
+  for(let lag=minLag;lag<=maxLag;lag++){
+    let s=0;
+    for(let i=0;i<limit;i++){
+      const a=frame[i]-dc;
+      const b=frame[i+lag]-dc;
+      s+=a*b;
+    }
+    if(s>bestVal){bestVal=s;bestLag=lag;}
+  }
+  const pitch=sampleRate/bestLag;
+  if(pitch<70||pitch>700) return 0;
+  return pitch;
+}
+
 // ============================================================
 // メイン解析
 // ============================================================
@@ -638,7 +703,7 @@ async function analyzeAudio(){
   try {
 
   // ============================================================
-  // 前処理①: DC offset除去 + 正規化 + ハイパスフィルタ(80Hz)
+  // 前処理①: DC offset除去 + 正規化 + ハイパスフィルタ(可変)
   // ============================================================
   const durationSec=raw.length/sampleRate;
   const cleaned=new Float32Array(raw.length);
@@ -653,14 +718,25 @@ async function analyzeAudio(){
     if(av>rawPeak) rawPeak=av;
     if(av>=0.98) clipCount++;
   }
+  if(rawPeak<0.01){
+    document.getElementById('loadingCard').classList.add('hidden');
+    alert('音量が小さすぎます。マイクに近づけて再録音してください。');
+    return;
+  }
   const dcOffset=dcSum/raw.length;
   for(let i=0;i<raw.length;i++) cleaned[i]=raw[i]-dcOffset;
   // 正規化
   let maxAmp=0;
   for(let i=0;i<cleaned.length;i++) if(Math.abs(cleaned[i])>maxAmp) maxAmp=Math.abs(cleaned[i]);
   if(maxAmp>0) for(let i=0;i<cleaned.length;i++) cleaned[i]/=maxAmp;
-  // ハイパスフィルタ（80Hz、1次IIRフィルタ）
-  const hpAlpha=1/(1+2*Math.PI*(80/sampleRate));
+  // ハイパスフィルタ（可変、1次IIRフィルタ）
+  const roughPitch=roughPitchEstimate(cleaned,sampleRate);
+  let hpCutoff=80;
+  if(roughPitch>=220) hpCutoff=120;
+  else if(roughPitch>=160) hpCutoff=100;
+  else if(roughPitch>=110) hpCutoff=90;
+  else if(roughPitch>0) hpCutoff=70;
+  const hpAlpha=1/(1+2*Math.PI*(hpCutoff/sampleRate));
   const hpData=new Float32Array(cleaned.length);
   hpData[0]=cleaned[0];
   for(let i=1;i<cleaned.length;i++) hpData[i]=hpAlpha*(hpData[i-1]+cleaned[i]-cleaned[i-1]);
@@ -703,7 +779,28 @@ async function analyzeAudio(){
   }
   const sortedRms=[...allRms].sort((a,b)=>a-b);
   const medianRms=(sortedRms.length>0?sortedRms[Math.floor(sortedRms.length/2)]:0)||0.01;
-  const energyThreshold=Math.max(medianRms*0.20,0.005);
+  if(medianRms<0.004){
+    document.getElementById('loadingCard').classList.add('hidden');
+    alert('音量が小さすぎます。マイク距離を近づけて再録音してください。');
+    return;
+  }
+  // 簡易キャリブレーション（最初の3秒で閾値を補正）
+  const calibSec=Math.min(3,stableData.length/sampleRate);
+  let calibMedian=medianRms;
+  if(calibSec>0.5){
+    const calibRms=[];
+    const calibSamples=Math.floor(calibSec*sampleRate);
+    for(let offset=0;offset+frameSize<calibSamples;offset+=hopSize){
+      const frame=stableData.slice(offset,offset+frameSize);
+      let rms=0;for(let i=0;i<frameSize;i++)rms+=frame[i]*frame[i];
+      calibRms.push(Math.sqrt(rms/frameSize));
+    }
+    if(calibRms.length>0){
+      const sortedCalib=[...calibRms].sort((a,b)=>a-b);
+      calibMedian=sortedCalib[Math.floor(sortedCalib.length/2)]||medianRms;
+    }
+  }
+  const energyThreshold=Math.max(medianRms*0.20,calibMedian*0.25,0.005);
   const totalFrames=allRms.length;
 
   for(let offset=0;offset+frameSize<stableData.length;offset+=hopSize){
@@ -988,6 +1085,29 @@ function displayResults(r){
   document.getElementById('scoreLabel').textContent=r.totalScore+'点';
   setTimeout(()=>document.getElementById('scoreMarker').style.left=r.totalScore+'%',100);
 
+  // 測定信頼度・環境ノイズ・再現性
+  const qChip=document.getElementById('qualityChip');
+  const nChip=document.getElementById('noiseChip');
+  const rChip=document.getElementById('reproChip');
+  if(qChip){
+    const qCls=r.qualityLabel==='高'?'good':r.qualityLabel==='中'?'warn':'bad';
+    qChip.className='quality-chip '+qCls;
+    qChip.textContent='測定信頼度: '+r.qualityLabel+' ('+r.qualityScore+')';
+    qChip.title='品質スコア '+r.qualityScore+' / 録音長 '+r.durationSec.toFixed(1)+'s';
+  }
+  if(nChip){
+    const nCls=r.noiseLabel==='低'?'good':r.noiseLabel==='中'?'warn':'bad';
+    nChip.className='quality-chip '+nCls;
+    nChip.textContent='環境ノイズ: '+r.noiseLabel+' ('+Math.round(r.noiseRatio*100)+'%)';
+    nChip.title='noiseRatio '+r.noiseRatio.toFixed(2);
+  }
+  if(rChip){
+    const repro=calcRepro(r,prevSummary);
+    rChip.className='quality-chip '+repro.cls;
+    rChip.textContent='再現性: '+repro.label;
+    rChip.title=repro.detail||'';
+  }
+
   const cc=v=>v>=70?'good':v>=40?'warn':'bad';
   const flickerCC=s=>{const d=Math.abs(s+1.0);return d<=0.2?'good':d<=0.4?'warn':'bad';};
 
@@ -1058,6 +1178,7 @@ function displayResults(r){
 
   document.getElementById('resultCard').classList.remove('hidden');
   document.getElementById('resultCard').scrollIntoView({behavior:'smooth'});
+  prevSummary=makeSummary(r);
 }
 
 // ============================================================
