@@ -426,7 +426,7 @@ function resetPrepTips(){
 
 function updatePrepTips(r){
   if(!r) return;
-  const quietOk=typeof r.noiseRatio==='number' ? r.noiseRatio<0.22 : null;
+  const quietOk=typeof r.noiseRatio==='number' ? r.noiseRatio<0.30 : null;
   const durOk=typeof r.durationSec==='number' ? r.durationSec>=5 : null;
   const clipOk=typeof r.clipRatio==='number' ? r.clipRatio<=0.005 : null;
   let distOk=null;
@@ -976,7 +976,7 @@ async function analyzeAudio(){
   if(voicedRatio<0.25) qualityNotes.push('有声区間が短い可能性があります（無音や息が多い場合は撮り直し推奨）');
   const noiseFloor=sortedRms.length>0?sortedRms[Math.floor(sortedRms.length*0.1)]:0;
   const noiseRatio=medianRms>0?noiseFloor/medianRms:1;
-  if(noiseRatio>0.25) qualityNotes.push('環境ノイズが多い可能性があります（静かな部屋で録音）');
+  if(noiseRatio>0.30) qualityNotes.push('環境ノイズが多い可能性があります（静かな部屋で録音）');
   let qualityScore=100;
   if(durationSec<3.0) qualityScore-=30;
   else if(durationSec<5.0) qualityScore-=15;
@@ -986,11 +986,11 @@ async function analyzeAudio(){
   else if(clipRatio>0.005) qualityScore-=25;
   if(voicedRatio<0.15) qualityScore-=40;
   else if(voicedRatio<0.25) qualityScore-=25;
-  if(noiseRatio>0.35) qualityScore-=30;
-  else if(noiseRatio>0.2) qualityScore-=15;
+  if(noiseRatio>0.40) qualityScore-=30;
+  else if(noiseRatio>0.30) qualityScore-=15;
   qualityScore=Math.max(0,Math.min(100,Math.round(qualityScore)));
   const qualityLabel=qualityScore>=80?'高':qualityScore>=60?'中':'低';
-  const noiseLabel=noiseRatio<0.12?'低':noiseRatio<0.22?'中':'高';
+  const noiseLabel=noiseRatio<0.12?'低':noiseRatio<0.30?'中':'高';
 
   // --- 副倍音検出 ---
   const subHarmonics=[];
