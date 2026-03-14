@@ -869,34 +869,21 @@ async function analyzeAudio(){
   const richScore=Math.round(countScore*0.6+strengthScore*0.4);
 
   // --- 6. 1/fゆらぎ ---
-  const voicedPitches=pitchValues.filter(p=>p>0);
-  let flickerOk=false;
-  let flickerSeries=voicedPitches;
-  if(medianPitch&&isFinite(medianPitch)&&medianPitch>0){
-    const inRange=voicedPitches.filter(p=>p>medianPitch*0.6&&p<medianPitch*1.4);
-    if(inRange.length>=8) flickerSeries=inRange;
-  }
+  const flickerPitches=pitchValues.filter(p=>p>medianPitch*0.8&&p<medianPitch*1.2);
   let flickerSlope=0,flickerScore=50;
-  if(flickerSeries.length>=8){
-    const center=(medianPitch&&isFinite(medianPitch)&&medianPitch>0)
-      ? medianPitch
-      : (flickerSeries.reduce((a,b)=>a+b,0)/flickerSeries.length);
-    const N2=nextPow2(flickerSeries.length);
+  if(flickerPitches.length>=8){
+    const N2=nextPow2(flickerPitches.length);
     const padded2=new Float32Array(N2);
-    for(let i=0;i<flickerSeries.length;i++) padded2[i]=flickerSeries[i]-center;
+    for(let i=0;i<flickerPitches.length;i++) padded2[i]=flickerPitches[i]-medianPitch;
     const spec2=fftMagnitude(padded2);
     const half2=Math.floor(N2/2);
     const logFreqs=[],logPowers=[];
-    for(let i=1;i<half2;i++){
-      const p=spec2[i]*spec2[i];
-      if(p>0){logFreqs.push(Math.log10(i));logPowers.push(Math.log10(p));}
-    }
+    for(let i=1;i<half2;i++){const p=spec2[i]*spec2[i];if(p>0){logFreqs.push(Math.log10(i));logPowers.push(Math.log10(p));}}
     if(logFreqs.length>4){
       const lr=linReg(logFreqs,logPowers);
       flickerSlope=lr.slope;
       const dist=Math.abs(flickerSlope+1.0);
       flickerScore=Math.max(0,Math.min(100,Math.round(100-dist*70)));
-      flickerOk=true;
     }
   }
 
@@ -942,8 +929,7 @@ async function analyzeAudio(){
   const trimmedP=[...sortedP]
     .slice(Math.floor(sortedP.length*0.15),Math.floor(sortedP.length*0.85))
     .filter(p=>p>medianPitch*0.5&&p<medianPitch*2.0);
-  const intonationOk=trimmedP.length>1&&trimmedP[0]>0;
-  const intonationSemitones=intonationOk
+  const intonationSemitones=(trimmedP.length>1&&trimmedP[0]>0)
     ? 12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]) : 0;
   // 抑揚スコア：3〜10半音が理想、単調すぎ・過剰すぎはペナルティ
   const intonationScore=Math.max(0,Math.min(100,Math.round(
@@ -960,19 +946,11 @@ async function analyzeAudio(){
   const isFemale = safePitch >= 165;
   const genderLabel = safePitch >= 165 ? '女性' : '男性';
 
-  const flickerDisplayScore=flickerOk?flickerScore:0;
-  const intonationDisplayScore=intonationOk?intonationScore:0;
-  const wRich=0.40;
-  const wFlicker=flickerOk?0.25:0;
-  const wStability=0.25;
-  const wIntonation=intonationOk?0.10:0;
-  const wSum=wRich+wFlicker+wStability+wIntonation;
   const totalScore=Math.round(
-    (richScore*wRich+
-     flickerDisplayScore*wFlicker+
-     stabilityScore*wStability+
-     intonationDisplayScore*wIntonation
-    )/wSum
+    richScore*0.40+
+    flickerScore*0.25+
+    stabilityScore*0.25+
+    intonationScore*0.10
   );
 
   const clipRatio=raw.length>0?clipCount/raw.length:0;
@@ -1028,8 +1006,8 @@ async function analyzeAudio(){
     else advices.push('倍音の強さが弱め：ハミング練習で倍音を強化しましょう');
   }
   if(stabilityScore<60) advices.push('声の安定性：腹筋を使った安定した息の流れを意識し、声の揺れを減らしましょう');
-  if(intonationOk&&intonationScore<50) advices.push('抑揚の調整：単調すぎる場合は感情を込めた読み上げ練習を。過剰な場合は落ち着いたトーンを意識して');
-  if(flickerOk&&Math.abs(flickerSlope+1.0)>0.4) advices.push('ゆらぎの調整：単調すぎず、過剰に揺れすぎない自然な抑揚を意識してみましょう');
+  if(intonationScore<50) advices.push('抑揚の調整：単調すぎる場合は感情を込めた読み上げ練習を。過剰な場合は落ち着いたトーンを意識して');
+  if(Math.abs(flickerSlope+1.0)>0.4) advices.push('ゆらぎの調整：単調すぎず、過剰に揺れすぎない自然な抑揚を意識してみましょう');
   if(advices.length===0) advices.push('全指標が良好です！現状を維持しながら、さらなる表現の幅を広げていきましょう');
   document.getElementById('adviceText').textContent=advices.join('。\n');
 
@@ -1038,11 +1016,8 @@ async function analyzeAudio(){
 
   // --- 結果保存 ---
   lastResult={
-    totalScore,richScore,countScore,strengthScore,
-    flickerScore,flickerDisplayScore,stabilityScore,
-    intonationScore,intonationDisplayScore,
-    flickerSlope,flickerOk,intonationOk,meanPitch:safePitch,
-    harmonicRatios,harmonicRichness,detectedCount,
+    totalScore,richScore,countScore,strengthScore,flickerScore,stabilityScore,intonationScore,
+    flickerSlope,meanPitch:safePitch,harmonicRatios,harmonicRichness,detectedCount,
     jitter,shimmer,intonationSemitones,
     isFemale,genderLabel,voiceType,
     vClass,vTitle,vIcon,vDesc,
@@ -1115,9 +1090,9 @@ function displayResults(r){
   // サブスコア（4軸）
   const subs=[
     ['Rich',      r.richScore,      'var(--accent3)', cc],
-    ['Flicker',   r.flickerDisplayScore,   null,       ()=>flickerCC(r.flickerSlope)],
+    ['Flicker',   r.flickerScore,   null,             ()=>flickerCC(r.flickerSlope)],
     ['Stability', r.stabilityScore, 'var(--accent5)', cc],
-    ['Intonation',r.intonationDisplayScore,'var(--accent4)', cc],
+    ['Intonation',r.intonationScore,'var(--accent4)', cc],
   ];
   subs.forEach(([k,score,color,fn])=>{
     const cls=fn(score); // flickerのfnはscoreを無視してslopeを使う
@@ -1131,18 +1106,6 @@ function displayResults(r){
       color?(cls==='good'?color:cls==='warn'?'var(--accent4)':'var(--accent2)')
            :(cls==='good'?'var(--accent)':cls==='warn'?'var(--accent4)':'var(--accent2)');
   });
-  if(r.flickerOk===false){
-    const el=document.getElementById('subFlicker');
-    const bar=document.getElementById('subFlickerBar');
-    if(el){el.textContent='解析不可';el.className='sub-score-val warn';}
-    if(bar){bar.style.width='0%';bar.style.background='var(--accent2)';}
-  }
-  if(r.intonationOk===false){
-    const el=document.getElementById('subIntonation');
-    const bar=document.getElementById('subIntonationBar');
-    if(el){el.textContent='解析不可';el.className='sub-score-val warn';}
-    if(bar){bar.style.width='0%';bar.style.background='var(--accent2)';}
-  }
 
   // メトリクス
   const pitch=r.meanPitch;
@@ -1166,26 +1129,16 @@ function displayResults(r){
   document.getElementById('metHRatio').textContent=r.detectedCount+' / 11';
   document.getElementById('metHRatio').className='metric-value '+cc(r.richScore);
   document.getElementById('metHRatioSub').textContent='強さ: '+(r.harmonicRichness*100).toFixed(1)+'%　検出数: '+r.detectedCount+'/11倍音';
-  if(r.flickerOk){
-    document.getElementById('metSlope').textContent=r.flickerSlope.toFixed(2);
-    document.getElementById('metSlope').className='metric-value '+flickerCC(r.flickerSlope);
-  }else{
-    document.getElementById('metSlope').textContent='解析不可';
-    document.getElementById('metSlope').className='metric-value warn';
-  }
+  document.getElementById('metSlope').textContent=r.flickerSlope.toFixed(2);
+  document.getElementById('metSlope').className='metric-value '+flickerCC(r.flickerSlope);
   // Jitter: ブラウザ基準 1%以下→緑、2%以下→黄、それ以上→赤
   document.getElementById('metJitter').textContent=r.jitter.toFixed(3)+'%';
   document.getElementById('metJitter').className='metric-value '+(r.jitter<1.0?'good':r.jitter<2.0?'warn':'bad');
   // Shimmer: ブラウザ基準 1dB以下→緑、2dB以下→黄、それ以上→赤
   document.getElementById('metShimmer').textContent=r.shimmer.toFixed(2)+' dB';
   document.getElementById('metShimmer').className='metric-value '+(r.shimmer<1.0?'good':r.shimmer<2.0?'warn':'bad');
-  if(r.intonationOk){
-    document.getElementById('metIntonation').textContent=r.intonationSemitones.toFixed(1)+' st';
-    document.getElementById('metIntonation').className='metric-value '+(r.intonationSemitones>=3&&r.intonationSemitones<=10?'good':r.intonationSemitones>=1?'warn':'bad');
-  }else{
-    document.getElementById('metIntonation').textContent='解析不可';
-    document.getElementById('metIntonation').className='metric-value warn';
-  }
+  document.getElementById('metIntonation').textContent=r.intonationSemitones.toFixed(1)+' st';
+  document.getElementById('metIntonation').className='metric-value '+(r.intonationSemitones>=3&&r.intonationSemitones<=10?'good':r.intonationSemitones>=1?'warn':'bad');
 
   // レーダーチャート
   requestAnimationFrame(()=>drawRadar(r));
@@ -1219,9 +1172,7 @@ function drawRadar(r){
   ctx.clearRect(0,0,SIZE,SIZE);
   const cx=SIZE/2,cy=SIZE/2,maxR=SIZE*0.32;// 少し小さくしてラベル余白確保
   const labels=['倍音','ゆらぎ','安定性','抑揚'];
-  const flickerScore=r.flickerOk===false?0:r.flickerScore;
-  const intonationScore=r.intonationOk===false?0:r.intonationScore;
-  const scores=[r.richScore,flickerScore,r.stabilityScore,intonationScore];
+  const scores=[r.richScore,r.flickerScore,r.stabilityScore,r.intonationScore];
   const n=4;
   const angle=i=>-Math.PI/2+(2*Math.PI/n)*i;
 
@@ -1521,9 +1472,9 @@ function saveImage(){
   // ── 4軸スコアバー ──
   const metrics=[
     {label:'🎻 倍音',score:r.richScore,color:'#7eb8ff'},
-    {label:'🌊 ゆらぎ',score:r.flickerDisplayScore,color:'#4ff0b0'},
+    {label:'🌊 ゆらぎ',score:r.flickerScore,color:'#4ff0b0'},
     {label:'🔬 安定性',score:r.stabilityScore,color:'#c084fc'},
-    {label:'🎵 抑揚',score:r.intonationDisplayScore,color:'#ffd166'},
+    {label:'🎵 抑揚',score:r.intonationScore,color:'#ffd166'},
   ];
   const col1X=30,col2X=W/2+10;
   const barAreaW=W/2-60,barH2=8;
