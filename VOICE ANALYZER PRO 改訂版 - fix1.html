@@ -17,10 +17,6 @@
   .tab-row{display:flex;gap:8px;margin-bottom:20px;}
   .tab-btn{flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'Space Mono',monospace;font-size:.75rem;cursor:pointer;transition:all .2s;}
   .tab-btn.active{background:rgba(79,240,176,.1);border-color:var(--accent);color:var(--accent);box-shadow:var(--glow);}
-  .prep-tips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
-  .prep-tip{font-size:.72rem;color:var(--text-dim);border:1px solid var(--border);padding:4px 10px;border-radius:999px;background:#0c0f15;transition:all .2s ease;}
-  .prep-tip.ok{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow);}
-  .prep-tip.bad{border-color:var(--accent2);color:var(--accent2);}
   .upload-zone{border:2px dashed var(--border);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .3s ease;}
   .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(79,240,176,.04);box-shadow:var(--glow);}
   .upload-zone input{display:none;}
@@ -150,12 +146,6 @@
   <div class="tab-row">
     <button class="tab-btn active" id="tabFile" onclick="switchInputTab('file')">📁 ファイルをアップロード</button>
     <button class="tab-btn" id="tabMic" onclick="switchInputTab('mic')">🎙️ マイクで録音</button>
-  </div>
-  <div class="prep-tips">
-    <span class="prep-tip" id="tipQuiet">静かな部屋</span>
-    <span class="prep-tip" id="tipDistance">距離10〜15cm</span>
-    <span class="prep-tip" id="tipDuration">5秒以上</span>
-    <span class="prep-tip" id="tipClip">クリップ注意</span>
   </div>
   <div id="fileMode">
     <div class="upload-zone" id="dropZone">
@@ -384,34 +374,6 @@ function resetAnalysisUI(){
   document.getElementById('resultCard').classList.add('hidden');
   document.getElementById('loadingCard').classList.add('hidden');
   document.getElementById('retakeBox').classList.add('hidden');
-  resetPrepTips();
-}
-
-function setTipState(id,ok){
-  const el=document.getElementById(id);
-  if(!el) return;
-  el.classList.remove('ok','bad');
-  if(ok===true) el.classList.add('ok');
-  if(ok===false) el.classList.add('bad');
-}
-
-function resetPrepTips(){
-  setTipState('tipQuiet',null);
-  setTipState('tipDistance',null);
-  setTipState('tipDuration',null);
-  setTipState('tipClip',null);
-}
-
-function updatePrepTips(result){
-  if(!result) return;
-  const quietOk=result.noiseRatio<0.30;
-  const durOk=result.durationSec>=5;
-  const clipOk=result.clipRatio<=0.005;
-  const distOk=!(result.rawPeak<0.05||result.clipRatio>0.005);
-  setTipState('tipQuiet',quietOk);
-  setTipState('tipDuration',durOk);
-  setTipState('tipClip',clipOk);
-  setTipState('tipDistance',distOk);
 }
 
 function getSupportedMimeType(){
@@ -935,8 +897,7 @@ async function analyzeAudio(){
     isFemale,genderLabel,voiceType,
     vClass,vTitle,vIcon,vDesc,
     frames:pitchValues.length,spectrum,half,binHz,sampleRate,subHarmonics,
-    qualityNotes,qualityScore,qualityLabel,noiseLabel,noiseRatio,voicedRatio,durationSec,
-    rawPeak,clipRatio
+    qualityNotes
   };
 
   document.getElementById('loadingCard').classList.add('hidden');
@@ -960,7 +921,6 @@ function displayResults(r){
   }else{
     retakeBox.classList.add('hidden');
   }
-  updatePrepTips(r);
   // 判定
   document.getElementById('verdictBox').className='verdict '+r.vClass;
   document.getElementById('verdictIcon').textContent=r.vIcon;
@@ -1631,4 +1591,3 @@ function fftMagnitude(x){
 </script>
 </body>
 </html>
-
