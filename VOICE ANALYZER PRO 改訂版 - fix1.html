@@ -768,7 +768,7 @@ async function analyzeAudio(){
   const medianRms=(sortedRms.length>0?sortedRms[Math.floor(sortedRms.length/2)]:0)||0.01;
   const sortedCalib=[...calibRms].sort((a,b)=>a-b);
   const medianCalib=(sortedCalib.length>0?sortedCalib[Math.floor(sortedCalib.length/2)]:medianRms)||medianRms;
-  const energyThreshold=Math.max(medianRms*0.20,medianCalib*0.25,0.005);
+  const energyThreshold=Math.max(medianRms*0.15,medianCalib*0.20,0.003);
   const totalFrames=allRms.length;
 
   for(let offset=0;offset+frameSize<stableData.length;offset+=hopSize){
@@ -798,15 +798,15 @@ async function analyzeAudio(){
     // 裏声は倍音が弱く信頼度が低く出るので閾値を非常に緩めに設定
     let power=0;for(let i=0;i<frameSize;i++)power+=frame[i]*frame[i];
     const normalizedAc=power>0?bestVal/power:0;
-    if(normalizedAc<0.05) continue;
+    if(normalizedAc<0.04) continue;
     const peakRatio=secondVal>0?bestVal/secondVal:bestVal;
-    if(peakRatio<1.05) continue;
+    if(peakRatio<1.03) continue;
 
     pitchValues.push(candPitch);
     rmsValues.push(rms);
   }
   const voicedRatio=totalFrames>0?pitchValues.length/totalFrames:0;
-  if(pitchValues.length<2){
+  if(pitchValues.length<1){
     document.getElementById('loadingCard').classList.add('hidden');
     alert('有声区間が短すぎます。3秒以上の発話でお試しください。');return;
   }
