@@ -832,7 +832,7 @@ async function analyzeAudio(){
   const harmonicEnergies=[];
   for(let h=1;h<=12;h++){
     const centerHz=safePitch*h;
-    const loHz=centerHz*0.90,hiHz=centerHz*1.10;
+    const loHz=centerHz*0.89,hiHz=centerHz*1.11;
     const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
     let peakVal=0;
     if(lo<=hi) for(let b=lo;b<=hi;b++) if(spectrum[b]>peakVal) peakVal=spectrum[b];
@@ -843,7 +843,7 @@ async function analyzeAudio(){
 
   // --- 4. 倍音スコア（数×強さの組み合わせ）---
   // 基音の10%以上の強さで検出された倍音を「有効」とカウント（2〜12倍音の11個）
-  const detectedCount=harmonicRatios.slice(1).filter(h=>h>=0.10).length;
+  const detectedCount=harmonicRatios.slice(1).filter(h=>h>=0.08).length;
   // 倍音の強さ（2〜12倍音の全11個の平均比率で統一）
   const richRatios=harmonicRatios.slice(1); // 11個
   const harmonicRichness=richRatios.reduce((a,b)=>a+b,0)/richRatios.length;
@@ -1365,7 +1365,7 @@ function drawHarmonicCanvas(r){
   for(let h=0;h<12;h++){
     const centerHz=r.meanPitch*(h+1);
     if(centerHz>maxFreqShow||centerHz<minFreqShow)continue;
-    const loHz=centerHz*0.90,hiHz=centerHz*1.10;
+      const loHz=centerHz*0.89,hiHz=centerHz*1.11;
     const loBin=Math.max(minBin,Math.round(loHz/r.binHz));
     const hiBin=Math.min(Math.round(hiHz/r.binHz),r.half-1);
     let peakBin=loBin,peakAmp=0;
