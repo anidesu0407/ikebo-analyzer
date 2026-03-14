@@ -427,7 +427,7 @@ function resetPrepTips(){
 
 function updatePrepTips(result){
   if(!result) return;
-  const quietOk=result.noiseRatio<0.30;
+  const quietOk=result.noiseRatio<0.25;
   const durOk=result.durationSec>=5;
   const clipOk=result.clipRatio<=0.005;
   const distOk=!(result.rawPeak<0.05||result.clipRatio>0.005);
@@ -706,7 +706,7 @@ async function analyzeAudio(){
     const roughStart=Math.max(0,Math.floor(cleaned.length/2-roughFrameSize/2));
     const roughFrame=cleaned.slice(roughStart,roughStart+roughFrameSize);
     const rMinLag=Math.max(1,Math.floor(sampleRate/700));
-    const rMaxLag=Math.floor(sampleRate/60);
+    const rMaxLag=Math.floor(sampleRate/70);
     let bestLag=rMinLag,bestVal=0;
     let power=0;for(let i=0;i<roughFrameSize;i++)power+=roughFrame[i]*roughFrame[i];
     for(let lag=rMinLag;lag<=rMaxLag;lag++){
@@ -749,7 +749,7 @@ async function analyzeAudio(){
 
   // --- 2. フレームごと自己相関 + Voiced Frame Detection ---
   const frameSize=4096,hopSize=512;
-  const minLag=Math.max(1,Math.floor(sampleRate/700)),maxLag=Math.floor(sampleRate/60);
+  const minLag=Math.max(1,Math.floor(sampleRate/700)),maxLag=Math.floor(sampleRate/70);
   const pitchValues=[];
   const rmsValues=[];
 
@@ -791,8 +791,8 @@ async function analyzeAudio(){
 
     const candPitch=sampleRate/bestLag;
 
-    // Voiced Frame Detection: ピッチ範囲外を除外（60〜700Hz）
-    if(candPitch<60||candPitch>700) continue;
+    // Voiced Frame Detection: ピッチ範囲外を除外（70〜700Hz）
+    if(candPitch<70||candPitch>700) continue;
 
     // 自己相関の信頼度チェック（正規化相関係数＋ピーク鋭さ）
     // 裏声は倍音が弱く信頼度が低く出るので閾値を非常に緩めに設定
@@ -816,7 +816,7 @@ async function analyzeAudio(){
   const medianPitch=sortedP[Math.floor(sortedP.length/2)];
 
   // FFTスペクトル補正＋放物線補間
-  const sLo=Math.max(Math.round(60/binHz),Math.round(medianPitch*0.85/binHz));
+  const sLo=Math.max(Math.round(80/binHz),Math.round(medianPitch*0.85/binHz));
   const sHi=Math.min(Math.round(medianPitch*1.15/binHz),half-1);
   let peakBin=Math.min(sLo,half-1),peakAmp=0;
   if(sLo<=sHi){
@@ -961,7 +961,7 @@ async function analyzeAudio(){
   if(voicedRatio<0.25) qualityNotes.push('有声区間が短い可能性があります（無音や息が多い場合は撮り直し推奨）');
   const noiseFloor=sortedRms.length>0?sortedRms[Math.floor(sortedRms.length*0.1)]:0;
   const noiseRatio=medianRms>0?noiseFloor/medianRms:1;
-  if(noiseRatio>0.30) qualityNotes.push('環境ノイズが多い可能性があります（静かな部屋で録音）');
+  if(noiseRatio>0.25) qualityNotes.push('環境ノイズが多い可能性があります（静かな部屋で録音）');
   let qualityScore=100;
   if(durationSec<3.0) qualityScore-=30;
   else if(durationSec<5.0) qualityScore-=15;
@@ -971,11 +971,11 @@ async function analyzeAudio(){
   else if(clipRatio>0.005) qualityScore-=25;
   if(voicedRatio<0.15) qualityScore-=40;
   else if(voicedRatio<0.25) qualityScore-=25;
-  if(noiseRatio>0.40) qualityScore-=30;
-  else if(noiseRatio>0.30) qualityScore-=15;
+  if(noiseRatio>0.35) qualityScore-=30;
+  else if(noiseRatio>0.2) qualityScore-=15;
   qualityScore=Math.max(0,Math.min(100,Math.round(qualityScore)));
   const qualityLabel=qualityScore>=80?'高':qualityScore>=60?'中':'低';
-  const noiseLabel=noiseRatio<0.12?'低':noiseRatio<0.30?'中':'高';
+  const noiseLabel=noiseRatio<0.12?'低':noiseRatio<0.22?'中':'高';
 
   // --- 副倍音検出 ---
   const subHarmonics=[];
