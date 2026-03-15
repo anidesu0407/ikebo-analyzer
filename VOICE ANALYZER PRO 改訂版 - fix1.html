@@ -754,12 +754,7 @@ function harmonicEnergySumFor(baseHz,spectrum,binHz,half){
   for(let h=1;h<=maxH;h++){
     const centerHz=baseHz*h;
     if(centerHz>binHz*(half-1)) break;
-    const halfWidth=Math.min(Math.max(centerHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
-    const loHz=Math.max(20,centerHz-halfWidth),hiHz=centerHz+halfWidth;
-    const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
-    let energy=0;
-    if(lo<=hi) for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
-    const amp=Math.sqrt(energy);
+    const amp=bandEnergyAt(centerHz,spectrum,binHz,half);
     sum+=amp*(1/h);
   }
   return sum;
@@ -771,6 +766,18 @@ function bandEnergyAt(centerHz,spectrum,binHz,half){
   const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
   let energy=0;
   if(lo<=hi) for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
+  // 帯域外の近傍からノイズ床を推定して差し引く
+  const bandBins=Math.max(1,hi-lo+1);
+  const n1s=Math.max(1,lo-bandBins),n1e=Math.max(0,lo-1);
+  const n2s=Math.min(half-1,hi+1),n2e=Math.min(half-1,hi+bandBins);
+  let noiseSum=0,noiseBins=0;
+  for(let b=n1s;b<=n1e;b++){noiseSum+=spectrum[b]||0;noiseBins++;}
+  for(let b=n2s;b<=n2e;b++){noiseSum+=spectrum[b]||0;noiseBins++;}
+  if(noiseBins>0){
+    const noiseMean=noiseSum/noiseBins;
+    const noisePow=(noiseMean*noiseMean)*bandBins;
+    energy=Math.max(0,energy-noisePow);
+  }
   return Math.sqrt(energy);
 }
 
@@ -967,6 +974,8 @@ async function analyzeAudio(){
   }
   const sortedRms=[...allRms].sort((a,b)=>a-b);
   const medianRms=(sortedRms.length>0?sortedRms[Math.floor(sortedRms.length/2)]:0)||0.01;
+  const noiseFloor=sortedRms.length>0?sortedRms[Math.floor(sortedRms.length*0.1)]:0;
+  const noiseRatio=medianRms>0?noiseFloor/medianRms:1;
   if(medianRms<0.004){
     document.getElementById('loadingCard').classList.add('hidden');
     alert('音量が小さすぎます。マイク距離を近づけて再録音してください。');
@@ -1063,19 +1072,16 @@ async function analyzeAudio(){
   const harmonicEnergies=[];
   for(let h=1;h<=12;h++){
     const centerHz=safePitch*h;
-    const halfWidth=Math.min(Math.max(centerHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
-    const loHz=Math.max(20,centerHz-halfWidth),hiHz=centerHz+halfWidth;
-    const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
-    let energy=0;
-    if(lo<=hi) for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
-    harmonicEnergies.push(Math.sqrt(energy));
+    const amp=bandEnergyAt(centerHz,spectrum,binHz,half);
+    harmonicEnergies.push(amp);
   }
   const fundamentalEnergy=harmonicEnergies[0]||1;
   const harmonicRatios=harmonicEnergies.map(e=>e/fundamentalEnergy);
 
   // --- 4. 倍音スコア（数×強さの組み合わせ）---
   // 基音の10%以上の強さで検出された倍音を「有効」とカウント（2〜12倍音の11個）
-  const detectedCount=harmonicRatios.slice(1).filter(h=>h>=0.10).length;
+  const detectThreshold=noiseRatio>0.40?0.15:noiseRatio>0.30?0.12:0.10;
+  const detectedCount=harmonicRatios.slice(1).filter(h=>h>=detectThreshold).length;
   // 倍音の強さ（2〜12倍音の全11個の平均比率で統一）
   const richRatios=harmonicRatios.slice(1); // 11個
   const harmonicRichness=richRatios.reduce((a,b)=>a+b,0)/richRatios.length;
@@ -1205,8 +1211,6 @@ async function analyzeAudio(){
   if(rawPeak<0.05) qualityNotes.push('音量が小さく、解析精度が落ちやすいです（マイクに近づけて録音）');
   if(clipRatio>0.005) qualityNotes.push('入力が大きすぎて歪んでいる可能性があります（少し離れて録音）');
   if(voicedRatio<0.25) qualityNotes.push('有声区間が短い可能性があります（無音や息が多い場合は撮り直し推奨）');
-  const noiseFloor=sortedRms.length>0?sortedRms[Math.floor(sortedRms.length*0.1)]:0;
-  const noiseRatio=medianRms>0?noiseFloor/medianRms:1;
   if(noiseRatio>0.30) qualityNotes.push('環境ノイズが多い可能性があります（静かな部屋で録音）');
   let qualityScore=100;
   if(durationSec<3.0) qualityScore-=30;
