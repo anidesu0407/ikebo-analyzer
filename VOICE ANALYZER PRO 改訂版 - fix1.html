@@ -833,6 +833,20 @@ function correctPitchBySafe(p,safePitch){
   return p;
 }
 
+// 抑揚算出用：外れ値だけ除外（純音テストの誤検出対策）
+function filterIntonationOutliers(pitches){
+  if(pitches.length<6) return pitches;
+  const logs=pitches.map(p=>Math.log2(p));
+  const sortedLogs=[...logs].sort((a,b)=>a-b);
+  const med=sortedLogs[Math.floor(sortedLogs.length/2)];
+  const absDevs=logs.map(v=>Math.abs(v-med)).sort((a,b)=>a-b);
+  const mad=absDevs[Math.floor(absDevs.length/2)]||0;
+  if(mad===0) return pitches;
+  const k=3.5;
+  const lo=med-k*mad,hi=med+k*mad;
+  return pitches.filter((p,i)=>logs[i]>=lo&&logs[i]<=hi);
+}
+
 function roughPitchEstimate(data,sampleRate){
   const size=Math.min(4096,data.length);
   if(size<1024) return 0;
@@ -1142,9 +1156,10 @@ async function analyzeAudio(){
   const stabilityScore=Math.round((jitterScore+shimmerScore)/2);
 
   // --- 9. 抑揚の幅（半音数）---
-  const trimmedP=[...sortedPc]
-    .slice(Math.floor(sortedPc.length*0.15),Math.floor(sortedPc.length*0.85))
-    .filter(p=>p>medianPitch*0.5&&p<medianPitch*2.0);
+  const baseIntonation=[...sortedPc].filter(p=>p>medianPitch*0.5&&p<medianPitch*2.0);
+  const filteredIntonation=filterIntonationOutliers(baseIntonation);
+  const trimmedP=[...filteredIntonation]
+    .slice(Math.floor(filteredIntonation.length*0.15),Math.floor(filteredIntonation.length*0.85));
   const intonationOk=trimmedP.length>1&&trimmedP[0]>0;
   const intonationSemitones=intonationOk
     ? 12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]) : 0;
