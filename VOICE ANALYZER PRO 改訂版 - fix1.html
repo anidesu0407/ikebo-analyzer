@@ -762,14 +762,15 @@ function harmonicEnergySumFor(baseHz,spectrum,binHz,half){
   for(let h=1;h<=maxH;h++){
     const centerHz=baseHz*h;
     if(centerHz>binHz*(half-1)) break;
-    const amp=bandEnergyAt(centerHz,spectrum,binHz,half);
+    const amp=bandEnergyAt(centerHz,spectrum,binHz,half,h);
     sum+=amp*(1/h);
   }
   return sum;
 }
 
-function bandEnergyAt(centerHz,spectrum,binHz,half){
-  const halfWidth=Math.min(Math.max(centerHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
+function bandEnergyAt(centerHz,spectrum,binHz,half,hIndex=0){
+  const ratio=harmonicBandRatio(hIndex);
+  const halfWidth=Math.min(Math.max(centerHz*ratio,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
   const loHz=Math.max(20,centerHz-halfWidth),hiHz=centerHz+halfWidth;
   const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
   let energy=0;
@@ -789,8 +790,9 @@ function bandEnergyAt(centerHz,spectrum,binHz,half){
   return Math.sqrt(energy);
 }
 
-function bandNoiseMean(centerHz,spectrum,binHz,half){
-  const halfWidth=Math.min(Math.max(centerHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
+function bandNoiseMean(centerHz,spectrum,binHz,half,hIndex=0){
+  const ratio=harmonicBandRatio(hIndex);
+  const halfWidth=Math.min(Math.max(centerHz*ratio,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
   const loHz=Math.max(20,centerHz-halfWidth),hiHz=centerHz+halfWidth;
   const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
   const bandBins=Math.max(1,hi-lo+1);
@@ -832,11 +834,11 @@ function pickOctavePitch(baseHz,spectrum,binHz,half,extraCandidate){
   if(candidates.length===0) return baseHz;
   const baseCandidate=(baseHz>=MIN&&baseHz<=MAX)?baseHz:candidates[0];
   const baseScore=harmonicEnergySumFor(baseCandidate,spectrum,binHz,half)||1e-12;
-  const baseFund=bandEnergyAt(baseCandidate,spectrum,binHz,half)||1e-12;
+  const baseFund=bandEnergyAt(baseCandidate,spectrum,binHz,half,1)||1e-12;
   let best=baseCandidate,bestScore=baseScore,bestFund=baseFund;
   candidates.forEach(c=>{
     const s=harmonicEnergySumFor(c,spectrum,binHz,half);
-    const f=bandEnergyAt(c,spectrum,binHz,half);
+    const f=bandEnergyAt(c,spectrum,binHz,half,1);
     if(s>bestScore){bestScore=s;best=c;bestFund=f;}
   });
   if(best!==baseCandidate){
@@ -1087,17 +1089,17 @@ async function analyzeAudio(){
   let specCandidate=null;
   let falsettoLike=false;
   if(safePitch>0){
-    const fundE=bandEnergyAt(safePitch,spectrum,binHz,half);
-    const harm2=bandEnergyAt(safePitch*2,spectrum,binHz,half);
-    const fundNoise=bandNoiseMean(safePitch,spectrum,binHz,half);
+    const fundE=bandEnergyAt(safePitch,spectrum,binHz,half,1);
+    const harm2=bandEnergyAt(safePitch*2,spectrum,binHz,half,2);
+    const fundNoise=bandNoiseMean(safePitch,spectrum,binHz,half,1);
     const fundSnr=fundNoise>0?fundE/fundNoise:999;
     falsettoLike=(harm2>fundE*1.8 && fundSnr<2.5);
   }
   if(specPeak&&specPeak.mean>0&&safePitch>0){
     const semitoneDiff=12*Math.log2(specPeak.hz/safePitch);
     const peakRatio=specPeak.peakVal/specPeak.mean;
-    const peakEnergy=bandEnergyAt(specPeak.hz,spectrum,binHz,half);
-    const baseEnergy=bandEnergyAt(safePitch,spectrum,binHz,half)+1e-12;
+    const peakEnergy=bandEnergyAt(specPeak.hz,spectrum,binHz,half,0);
+    const baseEnergy=bandEnergyAt(safePitch,spectrum,binHz,half,1)+1e-12;
     const isTestTone=currentInputKey&&currentInputKey.startsWith('test:');
     if(isTestTone){
       // テストトーンはスペクトル優先で補正
@@ -1122,7 +1124,7 @@ async function analyzeAudio(){
   const harmonicEnergies=[];
   for(let h=1;h<=12;h++){
     const centerHz=safePitch*h;
-    const amp=bandEnergyAt(centerHz,spectrum,binHz,half);
+    const amp=bandEnergyAt(centerHz,spectrum,binHz,half,h);
     harmonicEnergies.push(amp);
   }
   const fundamentalEnergy=harmonicEnergies[0]||1;
@@ -1130,7 +1132,7 @@ async function analyzeAudio(){
 
   // --- 4. 倍音スコア（数×強さの組み合わせ）---
   // 基音の10%以上の強さで検出された倍音を「有効」とカウント（2〜12倍音の11個）
-  const fundNoise=bandNoiseMean(safePitch,spectrum,binHz,half);
+  const fundNoise=bandNoiseMean(safePitch,spectrum,binHz,half,1);
   const fundSnr=fundNoise>0?fundamentalEnergy/fundNoise:999;
   let detectThreshold=noiseRatio>0.40?0.15:noiseRatio>0.30?0.12:0.10;
   if(fundSnr<1.8) detectThreshold=Math.max(detectThreshold,0.15);
@@ -1561,11 +1563,16 @@ function drawRadar(r){
 // ============================================================
 const HARMONIC_COLORS=['#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b0','#7eb8ff'];
 const HARMONIC_BAND_RATIO=0.12;
+const HARMONIC_BAND_RATIO_LOW=0.14; // 2〜4次は広めに拾う
 const HARMONIC_BAND_MIN=20;
 const HARMONIC_BAND_MAX=120;
 const NOISE_FLOOR_SUB=0.7; // ノイズ床の引き過ぎを防ぐ係数
-function getHarmonicBand(centerHz){
-  const halfWidth=Math.min(Math.max(centerHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
+function harmonicBandRatio(hIndex){
+  return (hIndex>=2&&hIndex<=4)?HARMONIC_BAND_RATIO_LOW:HARMONIC_BAND_RATIO;
+}
+function getHarmonicBand(centerHz,hIndex=0){
+  const ratio=harmonicBandRatio(hIndex);
+  const halfWidth=Math.min(Math.max(centerHz*ratio,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
   return {loHz:centerHz-halfWidth,hiHz:centerHz+halfWidth};
 }
 function buildHarmonicBars(ratios){
@@ -1638,7 +1645,7 @@ function drawHarmonicCanvas(r){
   for(let h=0;h<12;h++){
     const centerHz=r.meanPitch*(h+1);
     if(centerHz>maxFreqShow||centerHz<minFreqShow)continue;
-    const band=getHarmonicBand(centerHz);
+    const band=getHarmonicBand(centerHz,h+1);
     const loHz=Math.max(minFreqShow,band.loHz),hiHz=band.hiHz;
     const loBin=Math.max(minBin,Math.round(loHz/r.binHz));
     const hiBin=Math.min(Math.round(hiHz/r.binHz),r.half-1);
