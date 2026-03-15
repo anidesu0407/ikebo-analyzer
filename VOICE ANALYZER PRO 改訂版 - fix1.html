@@ -1168,8 +1168,12 @@ async function analyzeAudio(){
     if(tight.length>=2) intonationPool=tight;
   }
   const filteredIntonation=filterIntonationOutliers(intonationPool);
-  const trimmedP=[...filteredIntonation]
+  let trimmedP=[...filteredIntonation]
     .slice(Math.floor(filteredIntonation.length*0.15),Math.floor(filteredIntonation.length*0.85));
+  if(toneLike){
+    // 純音時は抑揚を0に固定（テストトーンの誤検出対策）
+    trimmedP=[medianPitch,medianPitch];
+  }
   const intonationOk=trimmedP.length>1&&trimmedP[0]>0;
   const intonationSemitones=intonationOk
     ? 12*Math.log2(trimmedP[trimmedP.length-1]/trimmedP[0]) : 0;
