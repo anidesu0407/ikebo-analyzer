@@ -1362,6 +1362,7 @@ async function analyzeAudio(){
 // 結果表示
 // ============================================================
 function displayResults(r){
+  const isTestTone=currentInputKey&&currentInputKey.startsWith('test:');
   const retakeBox=document.getElementById('retakeBox');
   const retakeText=document.getElementById('retakeText');
   if(r.qualityNotes&&r.qualityNotes.length){
@@ -1460,8 +1461,9 @@ function displayResults(r){
   document.getElementById('metIntonation').textContent=r.intonationSemitones.toFixed(1)+' st';
   document.getElementById('metIntonation').className='metric-value '+(r.intonationSemitones>=3&&r.intonationSemitones<=10?'good':r.intonationSemitones>=1?'warn':'bad');
 
-  // レーダーチャート
-  requestAnimationFrame(()=>drawRadar(r));
+  // レーダーチャート（テストトーン時は0固定で表示を無効化）
+  const radarR=isTestTone?{...r,richScore:0,flickerScore:0,stabilityScore:0,intonationScore:0}:r;
+  requestAnimationFrame(()=>drawRadar(radarR));
 
   // キャラクター判定
   if(r.voiceType) renderVoiceType(r.voiceType);
