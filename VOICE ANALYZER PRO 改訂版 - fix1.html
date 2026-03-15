@@ -804,6 +804,15 @@ function bandNoiseMean(centerHz,spectrum,binHz,half,hIndex=0){
   return noiseBins>0 ? noiseSum/noiseBins : 0;
 }
 
+// 検出数用：旧ロジックに寄せたピーク判定（±10%固定）
+function bandPeakAt(centerHz,spectrum,binHz,half,ratio=0.10){
+  const loHz=Math.max(20,centerHz*(1-ratio)),hiHz=centerHz*(1+ratio);
+  const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
+  let peakVal=0;
+  if(lo<=hi) for(let b=lo;b<=hi;b++) if(spectrum[b]>peakVal) peakVal=spectrum[b];
+  return peakVal;
+}
+
 function findSpecPeakCandidate(spectrum,binHz,half){
   const MIN=60,MAX=700;
   const minBin=Math.max(1,Math.floor(MIN/binHz));
@@ -1132,12 +1141,14 @@ async function analyzeAudio(){
 
   // --- 4. 倍音スコア（数×強さの組み合わせ）---
   // 基音の10%以上の強さで検出された倍音を「有効」とカウント（2〜12倍音の11個）
-  const fundNoise=bandNoiseMean(safePitch,spectrum,binHz,half,1);
-  const fundSnr=fundNoise>0?fundamentalEnergy/fundNoise:999;
-  let detectThreshold=noiseRatio>0.40?0.15:noiseRatio>0.30?0.12:0.10;
-  if(fundSnr<1.8) detectThreshold=Math.max(detectThreshold,0.15);
-  else if(fundSnr<2.5) detectThreshold=Math.max(detectThreshold,0.12);
-  const detectedCount=harmonicRatios.slice(1).filter(h=>h>=detectThreshold).length;
+  const harmonicPeakEnergies=[];
+  for(let h=1;h<=12;h++){
+    const centerHz=safePitch*h;
+    harmonicPeakEnergies.push(bandPeakAt(centerHz,spectrum,binHz,half,0.10));
+  }
+  const fundamentalPeak=harmonicPeakEnergies[0]||1;
+  const harmonicRatiosForCount=harmonicPeakEnergies.map(e=>e/fundamentalPeak);
+  const detectedCount=harmonicRatiosForCount.slice(1).filter(h=>h>=0.10).length;
   // 倍音の強さ（2〜12倍音の全11個の平均比率で統一）
   const richRatios=harmonicRatios.slice(1); // 11個
   const harmonicRichness=richRatios.reduce((a,b)=>a+b,0)/richRatios.length;
