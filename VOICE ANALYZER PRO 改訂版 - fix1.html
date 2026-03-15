@@ -774,12 +774,33 @@ function bandEnergyAt(centerHz,spectrum,binHz,half){
   return Math.sqrt(energy);
 }
 
-function pickOctavePitch(baseHz,spectrum,binHz,half){
+function findSpecPeakCandidate(spectrum,binHz,half){
   const MIN=60,MAX=700;
-  const candidates=[];
-  if(baseHz>=MIN&&baseHz<=MAX) candidates.push(baseHz);
-  if(baseHz*2<=MAX) candidates.push(baseHz*2);
-  if(baseHz/2>=MIN) candidates.push(baseHz/2);
+  const minBin=Math.max(1,Math.floor(MIN/binHz));
+  const maxBin=Math.min(Math.ceil(MAX/binHz),half-1);
+  let peakVal=0,peakBin=minBin;
+  let sum=0,count=0;
+  for(let b=minBin;b<=maxBin;b++){
+    const v=spectrum[b]||0;
+    sum+=v;count++;
+    if(v>peakVal){peakVal=v;peakBin=b;}
+  }
+  if(count===0) return null;
+  return {
+    hz:peakBin*binHz,
+    peakVal,
+    mean:sum/count
+  };
+}
+
+function pickOctavePitch(baseHz,spectrum,binHz,half,extraCandidate){
+  const MIN=60,MAX=700;
+  const candSet=new Set();
+  if(baseHz>=MIN&&baseHz<=MAX) candSet.add(baseHz);
+  if(baseHz*2<=MAX) candSet.add(baseHz*2);
+  if(baseHz/2>=MIN) candSet.add(baseHz/2);
+  if(extraCandidate&&extraCandidate>=MIN&&extraCandidate<=MAX) candSet.add(extraCandidate);
+  const candidates=[...candSet];
   if(candidates.length===0) return baseHz;
   const baseCandidate=(baseHz>=MIN&&baseHz<=MAX)?baseHz:candidates[0];
   const baseScore=harmonicEnergySumFor(baseCandidate,spectrum,binHz,half)||1e-12;
@@ -1010,7 +1031,14 @@ async function analyzeAudio(){
   const refinedPitch=Math.max(0,(peakBin+interp)*binHz);
   // refinedPitchが0または極端に小さい場合は中央値ピッチで代替
   let safePitch = refinedPitch > 10 ? refinedPitch : medianPitchRaw;
-  safePitch = pickOctavePitch(safePitch,spectrum,binHz,half);
+  const specPeak=findSpecPeakCandidate(spectrum,binHz,half);
+  let specCandidate=null;
+  if(specPeak&&specPeak.mean>0&&safePitch>0){
+    const semitoneDiff=12*Math.log2(specPeak.hz/safePitch);
+    const peakRatio=specPeak.peakVal/specPeak.mean;
+    if(Math.abs(semitoneDiff)>=7&&peakRatio>=3) specCandidate=specPeak.hz;
+  }
+  safePitch = pickOctavePitch(safePitch,spectrum,binHz,half,specCandidate);
 
   // 明らかなオクターブ誤検出だけ補正（safePitch基準）
   pitchValues=pitchValues.map(p=>correctPitchBySafe(p,safePitch));
