@@ -1035,6 +1035,14 @@ async function analyzeAudio(){
     }
     let bestLag=minLag,bestVal=ac[minLag];
     for(let lag=minLag+1;lag<=maxLag;lag++){if(ac[lag]>bestVal){bestVal=ac[lag];bestLag=lag;}}
+    // 近いピークがある場合は最小ラグを優先（純音でのサブハーモニック誤検出対策）
+    const nearThresh=bestVal*0.98;
+    for(let lag=minLag+1;lag<bestLag;lag++){
+      if(ac[lag]>=nearThresh && ac[lag]>ac[lag-1] && ac[lag]>=ac[lag+1]){
+        bestLag=lag;
+        break;
+      }
+    }
 
     const candPitch=sampleRate/bestLag;
 
@@ -1085,10 +1093,23 @@ async function analyzeAudio(){
     const fundSnr=fundNoise>0?fundE/fundNoise:999;
     falsettoLike=(harm2>fundE*1.8 && fundSnr<2.5);
   }
-  if(specPeak&&specPeak.mean>0&&safePitch>0&&falsettoLike){
+  if(specPeak&&specPeak.mean>0&&safePitch>0){
     const semitoneDiff=12*Math.log2(specPeak.hz/safePitch);
     const peakRatio=specPeak.peakVal/specPeak.mean;
-    if(Math.abs(semitoneDiff)>=7&&peakRatio>=3) specCandidate=specPeak.hz;
+    const peakEnergy=bandEnergyAt(specPeak.hz,spectrum,binHz,half);
+    const baseEnergy=bandEnergyAt(safePitch,spectrum,binHz,half)+1e-12;
+    const isTestTone=currentInputKey&&currentInputKey.startsWith('test:');
+    if(isTestTone){
+      // テストトーンはスペクトル優先で補正
+      if(Math.abs(semitoneDiff)>=3&&peakRatio>=2) specCandidate=specPeak.hz;
+    } else if(falsettoLike){
+      if(Math.abs(semitoneDiff)>=7&&peakRatio>=3) specCandidate=specPeak.hz;
+    } else {
+      // 声でも明らかなサブハーモニック誤検出時のみ救済
+      if(Math.abs(semitoneDiff)>=9&&peakRatio>=6&&peakEnergy>baseEnergy*2.5){
+        specCandidate=specPeak.hz;
+      }
+    }
   }
   safePitch = pickOctavePitch(safePitch,spectrum,binHz,half,specCandidate);
 
