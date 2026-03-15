@@ -195,7 +195,6 @@
       <option value="110">110 Hz</option>
       <option value="220" selected>220 Hz</option>
       <option value="440">440 Hz</option>
-      <option value="880">880 Hz</option>
     </select>
     <select id="testDur" class="test-select">
       <option value="3">3 秒</option>
@@ -749,6 +748,41 @@ function generateTestTone(freq,durationSec){
   drawWaveform();
 }
 
+function harmonicEnergySumFor(baseHz,spectrum,binHz,half){
+  let sum=0;
+  const maxH=8;
+  for(let h=1;h<=maxH;h++){
+    const centerHz=baseHz*h;
+    if(centerHz>binHz*(half-1)) break;
+    const halfWidth=Math.min(Math.max(centerHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
+    const loHz=Math.max(20,centerHz-halfWidth),hiHz=centerHz+halfWidth;
+    const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
+    let energy=0;
+    if(lo<=hi) for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
+    const amp=Math.sqrt(energy);
+    sum+=amp*(1/h);
+  }
+  return sum;
+}
+
+function pickOctavePitch(baseHz,spectrum,binHz,half){
+  const MIN=60,MAX=700;
+  const candidates=[];
+  if(baseHz>=MIN&&baseHz<=MAX) candidates.push(baseHz);
+  if(baseHz*2<=MAX) candidates.push(baseHz*2);
+  if(baseHz/2>=MIN) candidates.push(baseHz/2);
+  if(candidates.length===0) return baseHz;
+  const baseCandidate=(baseHz>=MIN&&baseHz<=MAX)?baseHz:candidates[0];
+  const baseScore=harmonicEnergySumFor(baseCandidate,spectrum,binHz,half);
+  let best=baseCandidate,bestScore=baseScore;
+  candidates.forEach(c=>{
+    const s=harmonicEnergySumFor(c,spectrum,binHz,half);
+    if(s>bestScore){bestScore=s;best=c;}
+  });
+  if(best!==baseCandidate&&bestScore>baseScore*1.25) return best;
+  return baseCandidate;
+}
+
 function roughPitchEstimate(data,sampleRate){
   const size=Math.min(4096,data.length);
   if(size<1024) return 0;
@@ -856,7 +890,7 @@ async function analyzeAudio(){
 
   // --- 2. フレームごと自己相関 + Voiced Frame Detection ---
   const frameSize=4096,hopSize=512;
-  const minLag=Math.max(1,Math.floor(sampleRate/700)),maxLag=Math.floor(sampleRate/70);
+  const minLag=Math.max(1,Math.floor(sampleRate/700)),maxLag=Math.floor(sampleRate/60);
   const pitchValues=[];
   const rmsValues=[];
 
@@ -910,8 +944,8 @@ async function analyzeAudio(){
 
     const candPitch=sampleRate/bestLag;
 
-    // Voiced Frame Detection: ピッチ範囲外を除外（70〜700Hz）
-    if(candPitch<70||candPitch>700) continue;
+    // Voiced Frame Detection: ピッチ範囲外を除外（60〜700Hz）
+    if(candPitch<60||candPitch>700) continue;
 
     // 自己相関の信頼度チェック（正規化相関係数）
     // 裏声は倍音が弱く信頼度が低く出るので閾値を非常に緩めに設定
@@ -946,7 +980,8 @@ async function analyzeAudio(){
   const interp=pd!==0?Math.max(-0.5,Math.min(0.5,0.5*(pp-pn)/(-pd))):0;
   const refinedPitch=Math.max(0,(peakBin+interp)*binHz);
   // refinedPitchが0または極端に小さい場合は中央値ピッチで代替
-  const safePitch = refinedPitch > 10 ? refinedPitch : medianPitch;
+  let safePitch = refinedPitch > 10 ? refinedPitch : medianPitch;
+  safePitch = pickOctavePitch(safePitch,spectrum,binHz,half);
 
   // --- 3. 倍音エネルギー（帯域エネルギー合計、safePitch基準）---
   const harmonicEnergies=[];
