@@ -784,7 +784,7 @@ function bandEnergyAt(centerHz,spectrum,binHz,half){
   if(noiseBins>0){
     const noiseMean=noiseSum/noiseBins;
     const noisePow=(noiseMean*noiseMean)*bandBins;
-    energy=Math.max(0,energy-noisePow);
+    energy=Math.max(0,energy-noisePow*NOISE_FLOOR_SUB);
   }
   return Math.sqrt(energy);
 }
@@ -1563,6 +1563,7 @@ const HARMONIC_COLORS=['#4ff0b0','#7eb8ff','#ffd166','#ff6b6b','#c084fc','#4ff0b
 const HARMONIC_BAND_RATIO=0.12;
 const HARMONIC_BAND_MIN=20;
 const HARMONIC_BAND_MAX=120;
+const NOISE_FLOOR_SUB=0.7; // ノイズ床の引き過ぎを防ぐ係数
 function getHarmonicBand(centerHz){
   const halfWidth=Math.min(Math.max(centerHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
   return {loHz:centerHz-halfWidth,hiHz:centerHz+halfWidth};
