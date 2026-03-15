@@ -1157,7 +1157,17 @@ async function analyzeAudio(){
 
   // --- 9. 抑揚の幅（半音数）---
   const baseIntonation=[...sortedPc].filter(p=>p>medianPitch*0.5&&p<medianPitch*2.0);
-  const filteredIntonation=filterIntonationOutliers(baseIntonation);
+  // 純音テストっぽい場合は、中央値近傍だけで抑揚を算出（誤検出の幅を抑制）
+  const toneLike=(detectedCount<=1&&harmonicRichness<0.08&&jitter<0.3&&shimmer<0.2);
+  let intonationPool=baseIntonation;
+  if(toneLike){
+    const tight=baseIntonation.filter(p=>{
+      const semis=12*Math.log2(p/medianPitch);
+      return Math.abs(semis)<=1.5;
+    });
+    if(tight.length>=2) intonationPool=tight;
+  }
+  const filteredIntonation=filterIntonationOutliers(intonationPool);
   const trimmedP=[...filteredIntonation]
     .slice(Math.floor(filteredIntonation.length*0.15),Math.floor(filteredIntonation.length*0.85));
   const intonationOk=trimmedP.length>1&&trimmedP[0]>0;
