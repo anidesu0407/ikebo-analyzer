@@ -1147,8 +1147,8 @@ async function analyzeAudio(){
     harmonicPeakEnergies.push(bandPeakAt(centerHz,spectrum,binHz,half,0.10));
   }
   const fundamentalPeak=harmonicPeakEnergies[0]||1;
-  const harmonicRatiosForCount=harmonicPeakEnergies.map(e=>e/fundamentalPeak);
-  const detectedCount=harmonicRatiosForCount.slice(1).filter(h=>h>=0.10).length;
+  const harmonicPeakRatios=harmonicPeakEnergies.map(e=>e/fundamentalPeak);
+  const detectedCount=harmonicPeakRatios.slice(1).filter(h=>h>=0.10).length;
   // 倍音の強さ（2〜12倍音の全11個の平均比率で統一）
   const richRatios=harmonicRatios.slice(1); // 11個
   const harmonicRichness=richRatios.reduce((a,b)=>a+b,0)/richRatios.length;
@@ -1336,7 +1336,7 @@ async function analyzeAudio(){
   lastResult={
     inputKey:currentInputKey,
     totalScore,richScore,countScore,strengthScore,flickerScore,stabilityScore,intonationScore,
-    flickerSlope,meanPitch:safePitch,harmonicRatios,harmonicRichness,detectedCount,
+    flickerSlope,meanPitch:safePitch,harmonicRatios,harmonicPeakRatios,harmonicRichness,detectedCount,
     jitter,shimmer,intonationSemitones,
     isFemale,genderLabel,voiceType,
     vClass,vTitle,vIcon,vDesc,
@@ -1463,7 +1463,7 @@ function displayResults(r){
   if(r.voiceType) renderVoiceType(r.voiceType);
 
   // 倍音バー
-  buildHarmonicBars(r.harmonicRatios);
+  buildHarmonicBars(r.harmonicRatios,r.harmonicPeakRatios);
 
   // 倍音スペクトル
   requestAnimationFrame(()=>drawHarmonicCanvas(r));
@@ -1586,13 +1586,16 @@ function getHarmonicBand(centerHz,hIndex=0){
   const halfWidth=Math.min(Math.max(centerHz*ratio,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
   return {loHz:centerHz-halfWidth,hiHz:centerHz+halfWidth};
 }
-function buildHarmonicBars(ratios){
-  const maxRatio=Math.max(...ratios,0.01);
+function buildHarmonicBars(ratios,peakRatios){
+  const hasPeak=Array.isArray(peakRatios)&&peakRatios.length===ratios.length;
+  const displayRatios=ratios.map((r,i)=>r>0?r:(hasPeak?(peakRatios[i]||0):0));
+  const maxRatio=Math.max(...displayRatios,0.01);
   const chart=document.getElementById('harmonicChart');
   chart.innerHTML='';
   ratios.forEach((r,h)=>{
-    const pct=Math.min(100,(r/maxRatio)*100);
-    const dbVal=r>0?Math.max(-40,20*Math.log10(r)).toFixed(1):'-∞';
+    const disp=displayRatios[h]||0;
+    const pct=Math.min(100,(disp/maxRatio)*100);
+    const dbVal=disp>0?Math.max(-40,20*Math.log10(disp)).toFixed(1):'-∞';
     const row=document.createElement('div');
     row.className='harmonic-bar-row';
     row.innerHTML=`<span class="hbar-label">${h===0?'基音':'×'+(h+1)}</span>
