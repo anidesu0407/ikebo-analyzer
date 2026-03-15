@@ -651,9 +651,12 @@ function drawWaveform(){
   document.getElementById('waveCard').classList.remove('hidden');
   const dpr=devicePixelRatio||1;
   const wc=document.getElementById('waveCanvas');
-  const W=Math.max(1,wc.offsetWidth*dpr),H=70*dpr;
+  const cssW=Math.max(1,wc.clientWidth||wc.offsetWidth||1);
+  const cssH=70;
+  const W=Math.max(1,Math.round(cssW*dpr)),H=Math.max(1,Math.round(cssH*dpr));
   wc.width=W;wc.height=H;
-  wc.style.height='70px'; // CSS表示サイズを固定してぼやけ・高さ崩れ防止
+  wc.style.width=cssW+'px';
+  wc.style.height=cssH+'px'; // CSS表示サイズを固定してぼやけ・高さ崩れ防止
   const wctx=wc.getContext('2d');wctx.fillStyle='#080a0e';wctx.fillRect(0,0,W,H);
   const raw=audioBuffer.getChannelData(0);
   const fadeLen=Math.floor(audioBuffer.sampleRate*0.2);
@@ -671,7 +674,8 @@ function drawWaveform(){
   // スペクトル
   const sc=document.getElementById('specCanvas');
   sc.width=W;sc.height=H;
-  sc.style.height='70px'; // CSS表示サイズを固定してぼやけ・高さ崩れ防止
+  sc.style.width=cssW+'px';
+  sc.style.height=cssH+'px'; // CSS表示サイズを固定してぼやけ・高さ崩れ防止
   const sctx=sc.getContext('2d');sctx.fillStyle='#080a0e';sctx.fillRect(0,0,W,H);
   const Ns=nextPow2(Math.min(data.length,65536));
   const useLens=Math.min(data.length,Ns);
@@ -1611,9 +1615,13 @@ function buildHarmonicBars(ratios,peakRatios){
 function drawHarmonicCanvas(r){
   const canvas=document.getElementById('harmonicCanvas');
   const dpr=devicePixelRatio||1;
-  const W=Math.max(1,canvas.offsetWidth*dpr),H=200*dpr;
+  const cssW=Math.max(1,canvas.clientWidth||canvas.offsetWidth||1);
+  const cssH=200;
+  const W=Math.max(1,Math.round(cssW*dpr));
+  const H=Math.max(1,Math.round(cssH*dpr));
   canvas.width=W;canvas.height=H;
-  canvas.style.height='200px'; // CSS表示サイズを固定してぼやけ防止
+  canvas.style.width=cssW+'px';
+  canvas.style.height=cssH+'px'; // CSS表示サイズを固定してぼやけ防止
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#080a0e';ctx.fillRect(0,0,W,H);
   const pad={l:40*dpr,r:12*dpr,t:12*dpr,b:24*dpr};
@@ -1709,9 +1717,11 @@ function saveImage(){
   const vt=r.voiceType||VOICE_TYPES[VOICE_TYPES.length-1];
   const vtColor=vt.color;
 
+  const exportScale=2; // 保存画像の解像度を2倍にしてシャープ化
   const W=600,H=680;
-  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const c=document.createElement('canvas');c.width=W*exportScale;c.height=H*exportScale;
   const ctx=c.getContext('2d');
+  ctx.setTransform(exportScale,0,0,exportScale,0,0);
 
   // roundRect polyfill（古いSafari対応）
   if(!ctx.roundRect){
