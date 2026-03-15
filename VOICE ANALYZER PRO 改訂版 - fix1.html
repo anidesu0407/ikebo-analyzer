@@ -765,6 +765,15 @@ function harmonicEnergySumFor(baseHz,spectrum,binHz,half){
   return sum;
 }
 
+function bandEnergyAt(centerHz,spectrum,binHz,half){
+  const halfWidth=Math.min(Math.max(centerHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
+  const loHz=Math.max(20,centerHz-halfWidth),hiHz=centerHz+halfWidth;
+  const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
+  let energy=0;
+  if(lo<=hi) for(let b=lo;b<=hi;b++) energy+=spectrum[b]*spectrum[b];
+  return Math.sqrt(energy);
+}
+
 function pickOctavePitch(baseHz,spectrum,binHz,half){
   const MIN=60,MAX=700;
   const candidates=[];
@@ -773,14 +782,34 @@ function pickOctavePitch(baseHz,spectrum,binHz,half){
   if(baseHz/2>=MIN) candidates.push(baseHz/2);
   if(candidates.length===0) return baseHz;
   const baseCandidate=(baseHz>=MIN&&baseHz<=MAX)?baseHz:candidates[0];
-  const baseScore=harmonicEnergySumFor(baseCandidate,spectrum,binHz,half);
-  let best=baseCandidate,bestScore=baseScore;
+  const baseScore=harmonicEnergySumFor(baseCandidate,spectrum,binHz,half)||1e-12;
+  const baseFund=bandEnergyAt(baseCandidate,spectrum,binHz,half)||1e-12;
+  let best=baseCandidate,bestScore=baseScore,bestFund=baseFund;
   candidates.forEach(c=>{
     const s=harmonicEnergySumFor(c,spectrum,binHz,half);
-    if(s>bestScore){bestScore=s;best=c;}
+    const f=bandEnergyAt(c,spectrum,binHz,half);
+    if(s>bestScore){bestScore=s;best=c;bestFund=f;}
   });
-  if(best!==baseCandidate&&bestScore>baseScore*1.25) return best;
+  if(best!==baseCandidate){
+    const scoreRatio=bestScore/baseScore;
+    const fundRatio=bestFund/baseFund;
+    if(scoreRatio>=1.6&&fundRatio>=1.5) return best;
+  }
   return baseCandidate;
+}
+
+function correctPitchBySafe(p,safePitch){
+  if(!safePitch) return p;
+  const MIN=60,MAX=700;
+  const low=safePitch*0.65;
+  const high=safePitch*1.6;
+  if(p<low&&p*2>=MIN&&p*2<=MAX){
+    if(Math.abs(p*2-safePitch)<Math.abs(p-safePitch)*0.5) return p*2;
+  }
+  if(p>high&&p/2>=MIN&&p/2<=MAX){
+    if(Math.abs(p/2-safePitch)<Math.abs(p-safePitch)*0.5) return p/2;
+  }
+  return p;
 }
 
 function roughPitchEstimate(data,sampleRate){
@@ -891,7 +920,7 @@ async function analyzeAudio(){
   // --- 2. フレームごと自己相関 + Voiced Frame Detection ---
   const frameSize=4096,hopSize=512;
   const minLag=Math.max(1,Math.floor(sampleRate/700)),maxLag=Math.floor(sampleRate/60);
-  const pitchValues=[];
+  let pitchValues=[];
   const rmsValues=[];
 
   // RMS全体の中央値を求めてエネルギー閾値を設定
@@ -962,13 +991,13 @@ async function analyzeAudio(){
     alert('有声区間が短すぎます。3秒以上の発話でお試しください。');return;
   }
 
-  // 中央値ピッチ
+  // 中央値ピッチ（一次推定）
   const sortedP=[...pitchValues].sort((a,b)=>a-b);
-  const medianPitch=sortedP[Math.floor(sortedP.length/2)];
+  const medianPitchRaw=sortedP[Math.floor(sortedP.length/2)];
 
   // FFTスペクトル補正＋放物線補間
-  const sLo=Math.max(Math.round(80/binHz),Math.round(medianPitch*0.85/binHz));
-  const sHi=Math.min(Math.round(medianPitch*1.15/binHz),half-1);
+  const sLo=Math.max(Math.round(80/binHz),Math.round(medianPitchRaw*0.85/binHz));
+  const sHi=Math.min(Math.round(medianPitchRaw*1.15/binHz),half-1);
   let peakBin=Math.min(sLo,half-1),peakAmp=0;
   if(sLo<=sHi){
     for(let b=sLo;b<=sHi;b++){if(spectrum[b]>peakAmp){peakAmp=spectrum[b];peakBin=b;}}
@@ -980,8 +1009,13 @@ async function analyzeAudio(){
   const interp=pd!==0?Math.max(-0.5,Math.min(0.5,0.5*(pp-pn)/(-pd))):0;
   const refinedPitch=Math.max(0,(peakBin+interp)*binHz);
   // refinedPitchが0または極端に小さい場合は中央値ピッチで代替
-  let safePitch = refinedPitch > 10 ? refinedPitch : medianPitch;
+  let safePitch = refinedPitch > 10 ? refinedPitch : medianPitchRaw;
   safePitch = pickOctavePitch(safePitch,spectrum,binHz,half);
+
+  // 明らかなオクターブ誤検出だけ補正（safePitch基準）
+  pitchValues=pitchValues.map(p=>correctPitchBySafe(p,safePitch));
+  const sortedPc=[...pitchValues].sort((a,b)=>a-b);
+  const medianPitch=sortedPc[Math.floor(sortedPc.length/2)];
 
   // --- 3. 倍音エネルギー（帯域エネルギー合計、safePitch基準）---
   const harmonicEnergies=[];
@@ -1080,8 +1114,8 @@ async function analyzeAudio(){
   const stabilityScore=Math.round((jitterScore+shimmerScore)/2);
 
   // --- 9. 抑揚の幅（半音数）---
-  const trimmedP=[...sortedP]
-    .slice(Math.floor(sortedP.length*0.15),Math.floor(sortedP.length*0.85))
+  const trimmedP=[...sortedPc]
+    .slice(Math.floor(sortedPc.length*0.15),Math.floor(sortedPc.length*0.85))
     .filter(p=>p>medianPitch*0.5&&p<medianPitch*2.0);
   const intonationOk=trimmedP.length>1&&trimmedP[0]>0;
   const intonationSemitones=intonationOk
