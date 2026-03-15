@@ -377,6 +377,7 @@
 let audioBuffer=null,audioCtx=null,mediaRecorder=null,recordedChunks=[],timerInterval=null,recordSeconds=0;
 let lastResult=null;
 let prevSummary=null;
+let currentInputKey='';
 let currentObjectUrl=null;
 let recorderMimeType='';
 function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
@@ -444,6 +445,7 @@ function updatePrepTips(result){
 
 function makeSummary(r){
   return {
+    inputKey:r.inputKey||'',
     totalScore:r.totalScore,
     meanPitch:r.meanPitch,
     richScore:r.richScore,
@@ -455,6 +457,9 @@ function makeSummary(r){
 function calcRepro(r,prev){
   if(!prev){
     return {label:'−',cls:'warn',detail:'次回の計測から判定'};
+  }
+  if(prev.inputKey!==r.inputKey){
+    return {label:'−',cls:'warn',detail:'入力が変わったため比較なし'};
   }
   const scoreDiff=Math.abs(r.totalScore-prev.totalScore);
   const pitchDiff=Math.abs(r.meanPitch-prev.meanPitch);
@@ -558,6 +563,7 @@ dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remov
 
 async function loadFile(file){
   if(!file||!file.type.startsWith('audio/'))return;
+  currentInputKey='file:'+(file.name||'unknown');
   document.getElementById('fileName').textContent=file.name;
   stopRecording(true);
   resetAnalysisUI();
@@ -602,6 +608,7 @@ async function toggleRecording(){
     }
     mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)recordedChunks.push(e.data);};
     mediaRecorder.onstop=async()=>{
+      currentInputKey='mic';
       const mimeType=mediaRecorder.mimeType||recorderMimeType||'audio/webm';
       const blob=new Blob(recordedChunks,{type:mimeType});
       const url=URL.createObjectURL(blob);
@@ -725,6 +732,7 @@ function bufferToWav(buffer){
 }
 
 function generateTestTone(freq,durationSec){
+  currentInputKey='test:'+freq+'Hz';
   switchInputTab('file');
   const ctx=getCtx();
   const sr=ctx.sampleRate;
@@ -779,6 +787,19 @@ function bandEnergyAt(centerHz,spectrum,binHz,half){
     energy=Math.max(0,energy-noisePow);
   }
   return Math.sqrt(energy);
+}
+
+function bandNoiseMean(centerHz,spectrum,binHz,half){
+  const halfWidth=Math.min(Math.max(centerHz*HARMONIC_BAND_RATIO,HARMONIC_BAND_MIN),HARMONIC_BAND_MAX);
+  const loHz=Math.max(20,centerHz-halfWidth),hiHz=centerHz+halfWidth;
+  const lo=Math.max(1,Math.floor(loHz/binHz)),hi=Math.min(Math.ceil(hiHz/binHz),half-1);
+  const bandBins=Math.max(1,hi-lo+1);
+  const n1s=Math.max(1,lo-bandBins),n1e=Math.max(0,lo-1);
+  const n2s=Math.min(half-1,hi+1),n2e=Math.min(half-1,hi+bandBins);
+  let noiseSum=0,noiseBins=0;
+  for(let b=n1s;b<=n1e;b++){noiseSum+=spectrum[b]||0;noiseBins++;}
+  for(let b=n2s;b<=n2e;b++){noiseSum+=spectrum[b]||0;noiseBins++;}
+  return noiseBins>0 ? noiseSum/noiseBins : 0;
 }
 
 function findSpecPeakCandidate(spectrum,binHz,half){
@@ -1056,7 +1077,15 @@ async function analyzeAudio(){
   let safePitch = refinedPitch > 10 ? refinedPitch : medianPitchRaw;
   const specPeak=findSpecPeakCandidate(spectrum,binHz,half);
   let specCandidate=null;
-  if(specPeak&&specPeak.mean>0&&safePitch>0){
+  let falsettoLike=false;
+  if(safePitch>0){
+    const fundE=bandEnergyAt(safePitch,spectrum,binHz,half);
+    const harm2=bandEnergyAt(safePitch*2,spectrum,binHz,half);
+    const fundNoise=bandNoiseMean(safePitch,spectrum,binHz,half);
+    const fundSnr=fundNoise>0?fundE/fundNoise:999;
+    falsettoLike=(harm2>fundE*1.8 && fundSnr<2.5);
+  }
+  if(specPeak&&specPeak.mean>0&&safePitch>0&&falsettoLike){
     const semitoneDiff=12*Math.log2(specPeak.hz/safePitch);
     const peakRatio=specPeak.peakVal/specPeak.mean;
     if(Math.abs(semitoneDiff)>=7&&peakRatio>=3) specCandidate=specPeak.hz;
@@ -1080,7 +1109,11 @@ async function analyzeAudio(){
 
   // --- 4. 倍音スコア（数×強さの組み合わせ）---
   // 基音の10%以上の強さで検出された倍音を「有効」とカウント（2〜12倍音の11個）
-  const detectThreshold=noiseRatio>0.40?0.15:noiseRatio>0.30?0.12:0.10;
+  const fundNoise=bandNoiseMean(safePitch,spectrum,binHz,half);
+  const fundSnr=fundNoise>0?fundamentalEnergy/fundNoise:999;
+  let detectThreshold=noiseRatio>0.40?0.15:noiseRatio>0.30?0.12:0.10;
+  if(fundSnr<1.8) detectThreshold=Math.max(detectThreshold,0.15);
+  else if(fundSnr<2.5) detectThreshold=Math.max(detectThreshold,0.12);
   const detectedCount=harmonicRatios.slice(1).filter(h=>h>=detectThreshold).length;
   // 倍音の強さ（2〜12倍音の全11個の平均比率で統一）
   const richRatios=harmonicRatios.slice(1); // 11個
@@ -1244,7 +1277,7 @@ async function analyzeAudio(){
 
   // --- 判定 ---
   let vClass,vIcon,vTitle,vDesc;
-  if(totalScore>=85){vClass='good';vIcon='🎙️';vTitle='いい声認定！';vDesc='声の全指標が高水準です。'+genderLabel+'らしい豊かな倍音と安定感を持った、本格的ないい声の持ち主です。';}
+  if(totalScore>=79){vClass='good';vIcon='🎙️';vTitle='いい声認定！';vDesc='声の全指標が高水準です。'+genderLabel+'らしい豊かな倍音と安定感を持った、本格的ないい声の持ち主です。';}
   else if(totalScore>=70){vClass='good';vIcon='✨';vTitle='かなりいい声！';vDesc='ほとんどの指標が優秀です。あと一歩でトップクラスの声になれます。';}
   else if(totalScore>=55){vClass='warn';vIcon='🎶';vTitle='惜しい！もう一息';vDesc='声の素地はあります。弱い指標を重点的にトレーニングしましょう。';}
   else if(totalScore>=35){vClass='warn';vIcon='📊';vTitle='伸びしろあり';vDesc='いくつかの指標で改善の余地があります。発声練習で大きく伸びる可能性があります。';}
@@ -1267,6 +1300,7 @@ async function analyzeAudio(){
 
   // --- 結果保存 ---
   lastResult={
+    inputKey:currentInputKey,
     totalScore,richScore,countScore,strengthScore,flickerScore,stabilityScore,intonationScore,
     flickerSlope,meanPitch:safePitch,harmonicRatios,harmonicRichness,detectedCount,
     jitter,shimmer,intonationSemitones,
@@ -1846,7 +1880,7 @@ const VOICE_TYPES=[
     traitColor:'#ffd166',
     seiyuuM:['大塚明夫','中田譲治','堀内賢雄'],
     seiyuuF:['林原めぐみ','田中敦子','平野綾'],
-    match:({totalScore})=>totalScore>=82,
+    match:({totalScore})=>totalScore>=79,
   },
   {
     id:'deep_rich',
